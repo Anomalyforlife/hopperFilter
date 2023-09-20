@@ -1,14 +1,12 @@
-import:
-    org.bukkit.event.inventory.InventoryMoveItemEvent
-
-on InventoryMoveItemEvent:
-    set {_i} to event.getItem()
-    set {_d} to event.getDestination()
+on inventory move item:
+    set {_d} to future event-inventory
+    set {_i} to event-item
     if holder of {_d} is hopper:
         set {_blockPos-x} to holder of {_d}'s x-coordinate
         set {_blockPos-y} to holder of {_d}'s y-coordinate
         set {_blockPos-z} to holder of {_d}'s z-coordinate
-        set {_blockPos} to "%{_blockPos-x}%_%{_blockPos-y}%_%{_blockPos-z}%"
+        set {_blockPos-dim} to holder of {_d}'s world
+        set {_blockPos} to "%{_blockPos-x}%_%{_blockPos-y}%_%{_blockPos-z}%_%{_blockPos-dim}%"
         set {_slot} to 0
         if {hopperFilter::%{_blockPos}%::%{_slot}%} ? "<none>" is not "<none>" or air:
             loop 27 times:
@@ -31,8 +29,10 @@ on right click:
                 set {_blockPos-x} to event-block's x-coordinate
                 set {_blockPos-y} to event-block's y-coordinate
                 set {_blockPos-z} to event-block's z-coordinate
-                set {_blockPos} to "%{_blockPos-x}%_%{_blockPos-y}%_%{_blockPos-z}%"
-                open chest inventory named "&c&n&lHopper§r &d§n&lFilter§r &f§k%{_blockPos}%" with 3 row to player
+                set {_blockPos-dim} to event-block's world
+                set {_blockPos} to "%{_blockPos-x}%_%{_blockPos-y}%_%{_blockPos-z}%_%{_blockPos-dim}%"
+                open chest inventory named "&c&n&lHopper§r &d§n&lFilter§r" with 3 row to player
+                set {hopperFilter::%player%::blockPos} to {_blockPos}
                 set {_slot} to 0
                 loop 27 times:
                     set slot {_slot} of current inventory of player to {hopperFilter::%{_blockPos}%::%{_slot}%}
@@ -45,8 +45,7 @@ on inventory click:
         if "%click type%" contains "left":
             if event-item exists:
                 set {_slot} to 0
-                set {_array::*} to name of event-inventory split at "§k"
-                set {_blockPos} to {_array::2}
+                set {_blockPos} to {hopperFilter::%player%::blockPos}
                 while {hopperFilter::%{_blockPos}%::%{_slot}%} ? "<none>" is not "<none>" or air:
                     add {hopperFilter::%{_blockPos}%::%{_slot}%} to {_itemList::*}
                     add 1 to {_slot}
@@ -57,13 +56,41 @@ on inventory click:
                         set {hopperFilter::%{_blockPos}%::%{_slot}%} to 1 of event-item
                         set slot {_slot} of current inventory of player to {hopperFilter::%{_blockPos}%::%{_slot}%}
                         send action bar "&a&lItem added to Filter!" to player
-            else:
-                send action bar "&e&lYou cannot add Air to Filter!" to player
         else if "%click type%" contains "right":
             if event-item exists:
                 if index of event-slot < 27:
-                    set {_array::*} to name of event-inventory split at "§k"
-                    set {_blockPos} to {_array::2}
+                    loop 27 times:
+                        if loop-value >= index of event-slot:
+                            set {hopperFilter::%{_blockPos}%::%loop-value%} to {hopperFilter::%{_blockPos}%::%loop-value%+1}
+                            set slot index of event-slot of current inventory of player to {hopperFilter::%{_blockPos}%::%loop-value%}
+                    set {_blockPos} to {hopperFilter::%player%::blockPos}
                     clear {hopperFilter::%{_blockPos}%::%index of event-slot%}
                     set slot index of event-slot of current inventory of player to air
                     send action bar "&4&lItem removed from Filter!" to player
+
+on block break:
+    if event-block is hopper:
+        set {_blockPos-x} to event-block's x-coordinate
+        set {_blockPos-y} to event-block's y-coordinate
+        set {_blockPos-z} to event-block's z-coordinate
+        set {_blockPos-dim} to event-block's world
+        set {_blockPos} to "%{_blockPos-x}%_%{_blockPos-y}%_%{_blockPos-z}%_%{_blockPos-dim}%"
+        set {_slot} to 0
+        if {hopperFilter::%{_blockPos}%::%{_slot}%} ? "<none>" is not "<none>" or air:
+            if player is sneaking:
+                loop 27 times:
+                    clear {hopperFilter::%{_blockPos}%::%{_slot}%}
+                    add 1 to {_slot}
+                send action bar "&a&lFilter cleared!" to player
+            else:
+                send action bar "&c&lYou must shift to break the Hopper Filter!" to player
+                cancel event
+                
+on disconnect:
+    clear {hopperFilter::%player%::blockPos}
+
+on join:
+    clear {hopperFilter::%player%::blockPos}
+
+on inventory close:
+    clear {hopperFilter::%player%::blockPos}

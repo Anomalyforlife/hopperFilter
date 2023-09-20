@@ -11,6 +11,7 @@ This skript uses a permission system, you can manage your server permissions usi
 ```
   • hopperfilter.opengui
   • hopperfilter.use
+  • hopperfilter.break
 ```
 
 ## Support

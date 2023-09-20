@@ -13,6 +13,15 @@ This skript uses a permission system, you can manage your server permissions usi
   • hopperfilter.use
 ```
 
+## Support
+
+This script currently support:
+• 1.16.*
+• 1.17.*
+• 1.18.*
+• 1.19.*
+• 1.20.*
+
 
 ## Installation
 

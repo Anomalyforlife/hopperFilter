@@ -10,7 +10,10 @@ on inventory move item:
         set {_slot} to 0
         if {hopperFilter::%{_blockPos}%::%{_slot}%} ? "<none>" is not "<none>" or air:
             loop 27 times:
-                if {_i} is {hopperFilter::%{_blockPos}%::%{_slot}%}:
+                if name of {hopperFilter::%{_blockPos}%::%{_slot}%} contains "ignore" or "nbt" or "durability" or "enchant":
+                    if type of {_i} is type of {hopperFilter::%{_blockPos}%::%{_slot}%}:
+                        exit 1 loop
+                else if {_i} is {hopperFilter::%{_blockPos}%::%{_slot}%}:
                     exit 1 loop
                 else if {_slot} is 26:
                     cancel event
@@ -55,7 +58,10 @@ on inventory click:
                     else:
                         set {hopperFilter::%{_blockPos}%::%{_slot}%} to 1 of event-item
                         set slot {_slot} of current inventory of player to {hopperFilter::%{_blockPos}%::%{_slot}%}
-                        send action bar "&a&lItem added to Filter!" to player
+                        if name of event-item contains "ignore" or "nbt" or "durability" or "enchant":
+                            send action bar "&a&lItem added to Filter! &c&lWARNING: &6&lIt will catch every variant of this item!" to player
+                        else:
+                            send action bar "&a&lItem added to Filter!" to player
                 else:
                     send action bar "&c&lFilter is full!" to player
         else if "%click type%" contains "right":
@@ -71,8 +77,7 @@ on inventory click:
                                 set {hopperFilter::%{_blockPos}%::%{_count}%} to {hopperFilter::%{_blockPos}%::%{_countplus}%}
                                 clear {hopperFilter::%{_blockPos}%::%{_countplus}%}
                             else:
-                                if {_count} is 0:
-                                    clear {hopperFilter::%{_blockPos}%::%{_count}%}
+                                clear {hopperFilter::%{_blockPos}%::%{_count}%}
                                 clear {hopperFilter::%{_blockPos}%::%{_countplus}%}
                                 set slot {_count} of current inventory of player to air
                         set {_count} to {_count} + 1
@@ -122,7 +127,7 @@ on explode:
                 cancel event
                 
 on place of tnt:
-    loop all blocks in radius 5 around event-block:
+    loop all blocks in radius 6 around event-block:
         if loop-block is hopper:
             set {_blockPos-x} to loop-block's x-coordinate
             set {_blockPos-y} to loop-block's y-coordinate

@@ -11,7 +11,7 @@ on inventory move item:
         if {hopperFilter::%{_blockPos}%::%{_slot}%} ? "<none>" is not "<none>" or air:
             loop 27 times:
                 if name of {hopperFilter::%{_blockPos}%::%{_slot}%} contains "ignore" or "nbt" or "durability" or "enchant":
-                    if type of {_i} is type of {hopperFilter::%{_blockPos}%::%{_slot}%}:
+                    if "%type of {_i}%" is "%type of {hopperFilter::%{_blockPos}%::%{_slot}%}%":
                         exit 1 loop
                 else if {_i} is {hopperFilter::%{_blockPos}%::%{_slot}%}:
                     exit 1 loop
@@ -127,7 +127,7 @@ on explode:
                 cancel event
                 
 on place of tnt:
-    loop all blocks in radius 6 around event-block:
+    loop all blocks in radius 5 around event-block:
         if loop-block is hopper:
             set {_blockPos-x} to loop-block's x-coordinate
             set {_blockPos-y} to loop-block's y-coordinate

@@ -24,6 +24,7 @@ This script currently support:
 • 1.18.*
 • 1.19.*
 • 1.20.*
+• 1.21.*
 
 
 ## Installation
@@ -32,8 +33,6 @@ You can install this plugin using Skript
 
 ```
   • Install Skript
-  • Install SkBee
-  • Install SkQuery
     
   - Run the server and stop it
 
@@ -45,4 +44,4 @@ You can install this plugin using Skript
 
 ## Screenshots
 
-![App Screenshot](https://cdn.discordapp.com/attachments/1003018523670487070/1154173687528960121/image.png)
+<img src=".hf/img/example1.png" width="100%" />

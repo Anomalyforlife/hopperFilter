@@ -1,3 +1,1 @@
 Skript
-SkBee
-SkQuery

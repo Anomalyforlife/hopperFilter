@@ -34,7 +34,7 @@ on right click:
                 set {_blockPos-z} to event-block's z-coordinate
                 set {_blockPos-dim} to event-block's world
                 set {_blockPos} to "%{_blockPos-x}%_%{_blockPos-y}%_%{_blockPos-z}%_%{_blockPos-dim}%"
-                open chest inventory named "&c&n&lHopper§r &d§n&lFilter§r" with 3 row to player
+                open chest inventory named "ꞌ§c§n§lHopper§r §d§n§lFilter§rꞌ" with 3 row to player
                 set {hopperFilter::%player%::blockPos} to {_blockPos}
                 set {_slot} to 0
                 loop 27 times:
@@ -42,46 +42,49 @@ on right click:
                     add 1 to {_slot} 
 
 on inventory click:
-    player has permission "hopperFilter.use"
-    if name of event-inventory contains "&c&n&lHopper§r &d§n&lFilter§r":
-        cancel event
-        if "%click type%" contains "left":
-            if event-item exists:
-                set {_slot} to 0
-                set {_blockPos} to {hopperFilter::%player%::blockPos}
-                while {hopperFilter::%{_blockPos}%::%{_slot}%} ? "<none>" is not "<none>" or air:
-                    add {hopperFilter::%{_blockPos}%::%{_slot}%} to {_itemList::*}
-                    add 1 to {_slot}
-                if {_slot} < 27:
-                    if {_itemList::*} contains 1 of event-item:
-                        send action bar "&6&lItem is already in Filter!" to player
-                    else:
-                        set {hopperFilter::%{_blockPos}%::%{_slot}%} to 1 of event-item
-                        set slot {_slot} of current inventory of player to {hopperFilter::%{_blockPos}%::%{_slot}%}
-                        if name of event-item contains "ignore" or "nbt" or "durability" or "enchant":
-                            send action bar "&a&lItem added to Filter! &c&lWARNING: &6&lIt will catch every variant of this item!" to player
-                        else:
-                            send action bar "&a&lItem added to Filter!" to player
-                else:
-                    send action bar "&c&lFilter is full!" to player
-        else if "%click type%" contains "right":
-            if event-item exists:
-                if index of event-slot < 27:
-                    set {_blockPos} to {hopperFilter::%player%::blockPos}
-                    set {_count} to 0
-                    loop 27 times:
-                        if {_count} >= index of event-slot:
-                            set {_countplus} to {_count} + 1
-                            if {hopperFilter::%{_blockPos}%::%{_countplus}%} ? "<none>" is not "<none>" or air:
-                                set slot {_count} of current inventory of player to {hopperFilter::%{_blockPos}%::%{_countplus}%}
-                                set {hopperFilter::%{_blockPos}%::%{_count}%} to {hopperFilter::%{_blockPos}%::%{_countplus}%}
-                                clear {hopperFilter::%{_blockPos}%::%{_countplus}%}
+    if player has permission "hopperFilter.use":
+        set {varName::%player's uuid%} to "%{name of event-inventory}%"
+        if name of event-inventory contains "Hopper§r" and "Filter" and "ꞌ":
+            cancel event
+            if click type is left mouse button:
+                if event-inventory is player's inventory:
+                    if event-item exists:
+                        set {_slot} to 0
+                        set {_blockPos} to {hopperFilter::%player%::blockPos}
+                        while {hopperFilter::%{_blockPos}%::%{_slot}%} ? "<none>" is not "<none>" or air:
+                            add {hopperFilter::%{_blockPos}%::%{_slot}%} to {_itemList::*}
+                            add 1 to {_slot}
+                        if {_slot} < 27:
+                            if {_itemList::*} contains 1 of event-item:
+                                send action bar "&6&lItem is already in Filter!" to player
                             else:
-                                clear {hopperFilter::%{_blockPos}%::%{_count}%}
-                                clear {hopperFilter::%{_blockPos}%::%{_countplus}%}
-                                set slot {_count} of current inventory of player to air
-                        set {_count} to {_count} + 1
-                    send action bar "&4&lItem removed from Filter!" to player
+                                set {hopperFilter::%{_blockPos}%::%{_slot}%} to 1 of event-item
+                                set slot {_slot} of current inventory of player to {hopperFilter::%{_blockPos}%::%{_slot}%}
+                                if name of event-item contains "ignore" or "nbt" or "durability" or "enchant":
+                                    send action bar "&a&lItem added to Filter! &c&lWARNING: &6&lIt will catch every variant of this item!" to player
+                                else:
+                                    send action bar "&a&lItem added to Filter!" to player
+                        else:
+                            send action bar "&c&lFilter is full!" to player
+            else if "%click type%" contains "right":
+                if event-item exists:
+                    if event-inventory is not player's inventory:
+                        if index of event-slot < 27:
+                            set {_blockPos} to {hopperFilter::%player%::blockPos}
+                            set {_count} to 0
+                            loop 27 times:
+                                if {_count} >= index of event-slot:
+                                    set {_countplus} to {_count} + 1
+                                    if {hopperFilter::%{_blockPos}%::%{_countplus}%} ? "<none>" is not "<none>" or air:
+                                        set slot {_count} of current inventory of player to {hopperFilter::%{_blockPos}%::%{_countplus}%}
+                                        set {hopperFilter::%{_blockPos}%::%{_count}%} to {hopperFilter::%{_blockPos}%::%{_countplus}%}
+                                        clear {hopperFilter::%{_blockPos}%::%{_countplus}%}
+                                    else:
+                                        clear {hopperFilter::%{_blockPos}%::%{_count}%}
+                                        clear {hopperFilter::%{_blockPos}%::%{_countplus}%}
+                                        set slot {_count} of current inventory of player to air
+                                set {_count} to {_count} + 1
+                            send action bar "&4&lItem removed from Filter!" to player
 
 on block break:
     if event-block is hopper:

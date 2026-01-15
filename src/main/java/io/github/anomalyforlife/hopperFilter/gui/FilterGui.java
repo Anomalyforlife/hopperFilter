@@ -68,7 +68,8 @@ public final class FilterGui {
         ItemStack[] filter = filterService.getOrLoad(key);
 
         for (ItemStack existing : filter) {
-            if (existing != null && !existing.getType().isAir() && clicked.isSimilar(existing)) {
+            if (existing != null && !existing.getType().isAir()
+                    && ItemMatch.matches(clicked, existing, FilterMatchOptions.defaults())) {
                 messages.actionBar(player, msgAlready);
                 return;
             }

@@ -82,7 +82,7 @@ public final class FilterMatchConfigGui {
         inventory.setItem(3, createOptionEntry(3, languageManager.getMatchName(), options).createItem(options, languageManager));
         inventory.setItem(4, entry.clone());
         inventory.setItem(5, createOptionEntry(5, languageManager.getMatchNBT(), options).createItem(options, languageManager));
-        inventory.setItem(6, filler.clone());
+        inventory.setItem(6, createOptionEntry(6, languageManager.getMatchTag(), options).createItem(options, languageManager));
         inventory.setItem(7, filler.clone());
         inventory.setItem(8, filler.clone());
     }
@@ -93,6 +93,7 @@ public final class FilterMatchConfigGui {
             case 2 -> createOptionEntry(2, languageManager.getMatchDurability(), null);
             case 3 -> createOptionEntry(3, languageManager.getMatchName(), null);
             case 5 -> createOptionEntry(5, languageManager.getMatchNBT(), null);
+            case 6 -> createOptionEntry(6, languageManager.getMatchTag(), null);
             default -> null;
         };
     }
@@ -103,6 +104,7 @@ public final class FilterMatchConfigGui {
             case 2 -> Material.IRON_PICKAXE;
             case 3 -> Material.NAME_TAG;
             case 5 -> Material.ENCHANTED_BOOK;
+            case 6 -> Material.CHEST;
             default -> Material.GRAY_DYE;
         };
 
@@ -111,6 +113,7 @@ public final class FilterMatchConfigGui {
             case 2 -> FilterMatchOptions::matchDurability;
             case 3 -> FilterMatchOptions::matchName;
             case 5 -> FilterMatchOptions::matchNBT;
+            case 6 -> FilterMatchOptions::matchTag;
             default -> null;
         };
 
@@ -119,6 +122,7 @@ public final class FilterMatchConfigGui {
             case 2 -> opts -> opts.withMatchDurability(!opts.matchDurability());
             case 3 -> opts -> opts.withMatchName(!opts.matchName());
             case 5 -> opts -> opts.withMatchNBT(!opts.matchNBT());
+            case 6 -> opts -> opts.withMatchTag(!opts.matchTag());
             default -> null;
         };
 
@@ -169,7 +173,14 @@ public final class FilterMatchConfigGui {
             ItemMeta meta = item.getItemMeta();
             if (meta != null && texts != null) {
                 String state = enabled ? texts.getOnState() : texts.getOffState();
-                meta.displayName(LEGACY.deserialize("§6" + texts.getName() + " §7- " + state));
+                String extra = "";
+                if (slot == 6 && enabled) {
+                    String tagName = options.matchTagName();
+                    if (tagName != null && !tagName.isBlank()) {
+                        extra = " §8(" + tagName + ")";
+                    }
+                }
+                meta.displayName(LEGACY.deserialize("§6" + texts.getName() + extra + " §7- " + state));
                 List<Component> lore = List.of(
                         LEGACY.deserialize("§7" + texts.getDescription()),
                         LEGACY.deserialize("§7" + languageManager.getClickToChange())

@@ -1,10 +1,16 @@
 package io.github.anomalyforlife.hopperFilter.util;
 
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
+import org.bukkit.Material;
+import org.bukkit.Tag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -38,7 +44,22 @@ public final class ItemMatch {
         if (options == null) {
             options = FilterMatchOptions.defaults();
         }
-        if (options.matchType() && movingItem.getType() != filterItem.getType()) {
+
+        boolean sameType = movingItem.getType() == filterItem.getType();
+        if (options.matchTag()) {
+            String selectedTag = options.matchTagName();
+            // If no tag is selected, do NOT widen matching: require same type.
+            if (selectedTag == null || selectedTag.isBlank()) {
+                if (!sameType) {
+                    return false;
+                }
+            } else {
+                // Tag matching must still constrain results even if matchType is disabled.
+                if (!sameType && !bothInTag(selectedTag, filterItem.getType(), movingItem.getType())) {
+                    return false;
+                }
+            }
+        } else if (options.matchType() && !sameType) {
             return false;
         }
         if (options.matchDurability() && !durabilityEquals(movingItem, filterItem)) {
@@ -51,6 +72,62 @@ public final class ItemMatch {
             return false;
         }
         return true;
+    }
+
+    public static List<String> materialTagNames(Material material) {
+        if (material == null) {
+            return List.of();
+        }
+
+        List<String> names = new ArrayList<>();
+        for (Field field : Tag.class.getFields()) {
+            if (!java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
+                continue;
+            }
+            Object value;
+            try {
+                value = field.get(null);
+            } catch (IllegalAccessException e) {
+                continue;
+            }
+            if (!(value instanceof Tag<?> rawTag)) {
+                continue;
+            }
+            try {
+                @SuppressWarnings("unchecked")
+                Tag<Material> materialTag = (Tag<Material>) rawTag;
+                if (materialTag.isTagged(material)) {
+                    names.add(field.getName());
+                }
+            } catch (Throwable ignored) {
+                // Not a Material tag (or otherwise incompatible), skip.
+            }
+        }
+
+        Collections.sort(names);
+        return List.copyOf(names);
+    }
+
+    private static boolean bothInTag(String tagFieldName, Material a, Material b) {
+        Tag<Material> tag = getMaterialTagByFieldName(tagFieldName);
+        if (tag == null) {
+            return false;
+        }
+        return tag.isTagged(a) && tag.isTagged(b);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Tag<Material> getMaterialTagByFieldName(String tagFieldName) {
+        try {
+            Field field = Tag.class.getField(tagFieldName);
+            Object value = field.get(null);
+            if (value instanceof Tag<?>) {
+                return (Tag<Material>) value;
+            }
+            return null;
+        } catch (ReflectiveOperationException ignored) {
+            return null;
+        }
     }
 
     private static boolean durabilityEquals(ItemStack movingItem, ItemStack filterItem) {
@@ -82,6 +159,9 @@ public final class ItemMatch {
         Map<String, Object> serialized = new HashMap<>(meta.serialize());
         serialized.remove("display");
         serialized.remove("damage");
+        // FilterMatchOptions are stored in the PersistentDataContainer; that would otherwise
+        // make a filtered item never equal to a normal item when matchNBT is enabled.
+        serialized.remove("PublicBukkitValues");
         return serialized;
     }
 

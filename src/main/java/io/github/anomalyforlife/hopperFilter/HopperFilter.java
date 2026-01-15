@@ -10,6 +10,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import io.github.anomalyforlife.hopperFilter.commands.HopperFilterCommand;
 import io.github.anomalyforlife.hopperFilter.gui.FilterGui;
 import io.github.anomalyforlife.hopperFilter.gui.FilterMatchConfigGui;
+import io.github.anomalyforlife.hopperFilter.gui.FilterTagSelectGui;
 import io.github.anomalyforlife.hopperFilter.listeners.HopperFilterListener;
 import io.github.anomalyforlife.hopperFilter.model.FilterMatchOptions;
 import io.github.anomalyforlife.hopperFilter.service.FilterService;
@@ -29,6 +30,7 @@ public final class HopperFilter extends JavaPlugin {
     private FilterService filterService;
     private FilterGui gui;
     private FilterMatchConfigGui configGui;
+    private FilterTagSelectGui tagSelectGui;
     private Messages messages;
     private LanguageManager languageManager;
 
@@ -50,6 +52,7 @@ public final class HopperFilter extends JavaPlugin {
                         filterService,
                         gui,
                         configGui,
+                tagSelectGui,
                         messages,
                         getConfig().getInt("tnt.blockedRadius", 5),
                         languageManager.getMsgCleared(),
@@ -95,6 +98,7 @@ public final class HopperFilter extends JavaPlugin {
                 languageManager.getMsgRemoved()
         );
         this.configGui = new FilterMatchConfigGui(filterService, messages, languageManager);
+        this.tagSelectGui = new FilterTagSelectGui(filterService, configGui, messages, languageManager);
     }
 
     private HopperFilterStorage createStorageFromConfig() {

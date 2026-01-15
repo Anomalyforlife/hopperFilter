@@ -21,6 +21,8 @@ import io.github.anomalyforlife.hopperFilter.gui.FilterGui;
 import io.github.anomalyforlife.hopperFilter.gui.FilterGuiHolder;
 import io.github.anomalyforlife.hopperFilter.gui.FilterMatchConfigGui;
 import io.github.anomalyforlife.hopperFilter.gui.FilterMatchConfigGuiHolder;
+import io.github.anomalyforlife.hopperFilter.gui.FilterTagSelectGui;
+import io.github.anomalyforlife.hopperFilter.gui.FilterTagSelectGuiHolder;
 import io.github.anomalyforlife.hopperFilter.model.HopperKey;
 import io.github.anomalyforlife.hopperFilter.service.FilterService;
 import io.github.anomalyforlife.hopperFilter.util.Messages;
@@ -29,6 +31,7 @@ public final class HopperFilterListener implements Listener {
     private final FilterService filterService;
     private final FilterGui gui;
     private final FilterMatchConfigGui configGui;
+    private final FilterTagSelectGui tagSelectGui;
     private final Messages messages;
 
     private final int tntBlockedRadius;
@@ -41,6 +44,7 @@ public final class HopperFilterListener implements Listener {
     public HopperFilterListener(FilterService filterService,
                                FilterGui gui,
                                FilterMatchConfigGui configGui,
+                               FilterTagSelectGui tagSelectGui,
                                Messages messages,
                                int tntBlockedRadius,
                                String msgCleared,
@@ -50,6 +54,7 @@ public final class HopperFilterListener implements Listener {
         this.filterService = filterService;
         this.gui = gui;
         this.configGui = configGui;
+        this.tagSelectGui = tagSelectGui;
         this.messages = messages;
         this.tntBlockedRadius = tntBlockedRadius;
         this.msgCleared = msgCleared;
@@ -151,7 +156,21 @@ public final class HopperFilterListener implements Listener {
         if (top.getHolder() instanceof FilterMatchConfigGuiHolder configHolder) {
             event.setCancelled(true);
             try {
+                if (event.getSlot() == 6) {
+                    tagSelectGui.open(player, configHolder.key(), configHolder.slot());
+                    return;
+                }
                 configGui.handleClick(player, top, configHolder, event.getSlot());
+            } catch (Exception e) {
+                messages.send(player, "§cDB error: " + e.getMessage());
+            }
+            return;
+        }
+
+        if (top.getHolder() instanceof FilterTagSelectGuiHolder tagHolder) {
+            event.setCancelled(true);
+            try {
+                tagSelectGui.handleClick(player, top, tagHolder, event.getSlot());
             } catch (Exception e) {
                 messages.send(player, "§cDB error: " + e.getMessage());
             }

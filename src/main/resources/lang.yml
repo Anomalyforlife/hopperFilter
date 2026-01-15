@@ -36,6 +36,24 @@ gui:
       description: "Considera incantesimi, modelli e altri dati NBT."
       on: "§aON"
       off: "§cOFF"
+
+    match-tag:
+      name: "Match Tag"
+      description: "Raggruppa item con lo stesso tag (ad es. tutte le plank)."
+      on: "§aON"
+      off: "§cOFF"
+
+  # GUI per selezionare un tag specifico
+  tag-select:
+    title: "§6Select Tag"
+    back: "§7Back"
+    prev: "§ePrevious"
+    next: "§eNext"
+    disable: "§cDisable Tag Matching"
+    page: "§7Page §f{page}§7/§f{pages}"
+    item-line: "§7Item: §f{item}"
+    selected-line: "§aSelected"
+    click-to-select-line: "§7Click to select"
   
   # Tooltip nella GUI di configurazione
   click-to-change: "§7Clicca per cambiare."

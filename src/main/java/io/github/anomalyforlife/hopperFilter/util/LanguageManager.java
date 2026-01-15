@@ -1,8 +1,10 @@
 package io.github.anomalyforlife.hopperFilter.util;
 
+import java.io.File;
 import java.util.Objects;
 
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
 
 public final class LanguageManager {
@@ -40,13 +42,25 @@ public final class LanguageManager {
     private final OptionTexts matchDurability;
     private final OptionTexts matchName;
     private final OptionTexts matchNBT;
+    private final OptionTexts matchTag;
+
+    private final String tagSelectTitle;
+    private final String tagSelectBack;
+    private final String tagSelectPrev;
+    private final String tagSelectNext;
+    private final String tagSelectDisable;
+    private final String tagSelectPage;
+    private final String tagSelectItemLine;
+    private final String tagSelectSelectedLine;
+    private final String tagSelectClickToSelectLine;
 
     public LanguageManager(Plugin plugin) {
         Objects.requireNonNull(plugin, "plugin");
         
         // Carica lang.yml da risorse e cartella plugin
         plugin.saveResource("lang.yml", false);
-        FileConfiguration config = plugin.getConfig();
+        File langFile = new File(plugin.getDataFolder(), "lang.yml");
+        FileConfiguration config = YamlConfiguration.loadConfiguration(langFile);
         
         // Carica prefisso
         this.prefix = config.getString("prefix", "§7[§dHopperFilter§7] §r");
@@ -109,6 +123,23 @@ public final class LanguageManager {
             config.getString("gui.options.match-nbt.on", "§aON"),
             config.getString("gui.options.match-nbt.off", "§cOFF")
         );
+        this.matchTag = new OptionTexts(
+            config.getString("gui.options.match-tag.name", "Match Tag"),
+            config.getString("gui.options.match-tag.description", "Raggruppa item con lo stesso tag (ad es. tutte le plank)."),
+            config.getString("gui.options.match-tag.on", "§aON"),
+            config.getString("gui.options.match-tag.off", "§cOFF")
+        );
+
+        // GUI selezione tag
+        this.tagSelectTitle = config.getString("gui.tag-select.title", "§6Select Tag");
+        this.tagSelectBack = config.getString("gui.tag-select.back", "§7Back");
+        this.tagSelectPrev = config.getString("gui.tag-select.prev", "§ePrevious");
+        this.tagSelectNext = config.getString("gui.tag-select.next", "§eNext");
+        this.tagSelectDisable = config.getString("gui.tag-select.disable", "§cDisable Tag Matching");
+        this.tagSelectPage = config.getString("gui.tag-select.page", "§7Page §f{page}§7/§f{pages}");
+        this.tagSelectItemLine = config.getString("gui.tag-select.item-line", "§7Item: §f{item}");
+        this.tagSelectSelectedLine = config.getString("gui.tag-select.selected-line", "§aSelected");
+        this.tagSelectClickToSelectLine = config.getString("gui.tag-select.click-to-select-line", "§7Click to select");
     }
 
     public String getPrefix() {
@@ -229,6 +260,48 @@ public final class LanguageManager {
 
     public OptionTexts getMatchNBT() {
         return matchNBT;
+    }
+
+    public OptionTexts getMatchTag() {
+        return matchTag;
+    }
+
+    public String getTagSelectTitle() {
+        return tagSelectTitle;
+    }
+
+    public String getTagSelectBack() {
+        return tagSelectBack;
+    }
+
+    public String getTagSelectPrev() {
+        return tagSelectPrev;
+    }
+
+    public String getTagSelectNext() {
+        return tagSelectNext;
+    }
+
+    public String getTagSelectDisable() {
+        return tagSelectDisable;
+    }
+
+    public String getTagSelectPage(int page, int pages) {
+        return tagSelectPage
+                .replace("{page}", String.valueOf(page))
+                .replace("{pages}", String.valueOf(pages));
+    }
+
+    public String getTagSelectItemLine(String item) {
+        return tagSelectItemLine.replace("{item}", item);
+    }
+
+    public String getTagSelectSelectedLine() {
+        return tagSelectSelectedLine;
+    }
+
+    public String getTagSelectClickToSelectLine() {
+        return tagSelectClickToSelectLine;
     }
 
     public static final class OptionTexts {

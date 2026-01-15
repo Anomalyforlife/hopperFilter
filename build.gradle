@@ -37,18 +37,19 @@ dependencies {
     compileOnly "com.google.code.gson:gson:2.10.1"
 }
 
-tasks.shadowJar {
-    archiveClassifier.set("")
+// IMPORTANT: shadowJar deve avere un classifier diverso dal jar normale (no overwrite)
+tasks.named("shadowJar", com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar).configure {
+    archiveClassifier.set("all") // => HopperFilter-1.3.1-all.jar
 }
 
-tasks.build {
-    dependsOn tasks.shadowJar
+tasks.named("build").configure {
+    dependsOn(tasks.named("shadowJar"))
 }
 
 tasks {
     runServer {
         minecraftVersion(runPaperMcVersion)
-        pluginJars.from(tasks.shadowJar)
+        pluginJars.from(tasks.named("shadowJar"))
     }
 }
 
@@ -114,30 +115,35 @@ if (changelogContent == null || changelogContent.isBlank()) {
     changelogContent = "Automated publish."
 }
 
+// Hangar deve caricare il jar "thin"
 hangarPublish {
-    publications {
-        register("plugin") {
-            version.set(suffixedVersion)
-            channel.set(isRelease ? "Release" : "Snapshot")
-            changelog.set(changelogContent)
-            id.set("hopperfilter")
-            apiKey.set(System.getenv("HANGAR_API_TOKEN"))
+    publications.register("plugin") {
+        version.set(suffixedVersion)
+        channel.set(isRelease ? "Release" : "Snapshot")
+        changelog.set(changelogContent)
+        id.set("hopperfilter")
 
-            platforms {
-                register(io.papermc.hangarpublishplugin.model.Platforms.PAPER) {
-                    // Carica il jar "thin" su Hangar (molto più piccolo del shadowJar)
-                    jar.set(tasks.named("jar").flatMap { it.archiveFile })
+        // null-safe (evita NPE/config error quando il token manca)
+        apiKey.set(providers.environmentVariable("HANGAR_API_TOKEN"))
 
-                    platformVersions.set(
-                            (property("paperVersion") as String)
-                                    .split(",")
-                                    .collect { it.trim() }
-                                    .findAll { !it.isBlank() }
-                    )
-                }
+        platforms {
+            register(io.papermc.hangarpublishplugin.model.Platforms.PAPER) {
+                jar.set(tasks.named("jar").flatMap { it.archiveFile })
+
+                platformVersions.set(
+                        (property("paperVersion") as String)
+                                .split(",")
+                                .collect { it.trim() }
+                                .findAll { !it.isBlank() }
+                )
             }
         }
     }
+}
+
+// Dipendenza esplicita: publish usa jar
+tasks.matching { it.name == "publishPluginPublicationToHangar" }.configureEach {
+    dependsOn(tasks.named("jar"))
 }
 
 tasks.named("jar").configure {

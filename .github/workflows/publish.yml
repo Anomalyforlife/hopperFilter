@@ -27,4 +27,4 @@ jobs:
       - name: Publish
         env:
           HANGAR_API_TOKEN: ${{ secrets.HANGAR_API_TOKEN }}
-        run: gradle shadowJar publishPluginPublicationToHangar --stacktrace --info
+        run: gradle jar publishPluginPublicationToHangar --stacktrace --info

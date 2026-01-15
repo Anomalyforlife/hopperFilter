@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.Material;
 import org.bukkit.Tag;
@@ -116,18 +118,37 @@ public final class ItemMatch {
         return tag.isTagged(a) && tag.isTagged(b);
     }
 
+    private static final Map<String, Tag<Material>> MATERIAL_TAG_CACHE = new ConcurrentHashMap<>();
+    private static final Set<String> MATERIAL_TAG_MISSING = ConcurrentHashMap.newKeySet();
+
     @SuppressWarnings("unchecked")
     private static Tag<Material> getMaterialTagByFieldName(String tagFieldName) {
+        if (tagFieldName == null || tagFieldName.isBlank()) {
+            return null;
+        }
+        if (MATERIAL_TAG_MISSING.contains(tagFieldName)) {
+            return null;
+        }
+
+        Tag<Material> cached = MATERIAL_TAG_CACHE.get(tagFieldName);
+        if (cached != null) {
+            return cached;
+        }
+
         try {
             Field field = Tag.class.getField(tagFieldName);
             Object value = field.get(null);
             if (value instanceof Tag<?>) {
-                return (Tag<Material>) value;
+                Tag<Material> tag = (Tag<Material>) value;
+                MATERIAL_TAG_CACHE.put(tagFieldName, tag);
+                return tag;
             }
-            return null;
         } catch (ReflectiveOperationException ignored) {
-            return null;
+            // ignore
         }
+
+        MATERIAL_TAG_MISSING.add(tagFieldName);
+        return null;
     }
 
     private static boolean durabilityEquals(ItemStack movingItem, ItemStack filterItem) {

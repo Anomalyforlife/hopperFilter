@@ -39,6 +39,26 @@ public final class FilterService {
         return cloneFilter(loaded);
     }
 
+    /**
+     * Returns the cached filter array for read-only usage (no cloning).
+     * Callers MUST NOT mutate the returned array or its ItemStacks.
+     */
+    public ItemStack[] getOrLoadView(HopperKey key) throws Exception {
+        ItemStack[] cached = cache.get(key);
+        if (cached != null) {
+            return cached;
+        }
+
+        ItemStack[] loaded = storage.loadFilter(key, size);
+        if (loaded == null || loaded.length != size) {
+            loaded = new ItemStack[size];
+        }
+
+        ItemStack[] stored = cloneFilter(loaded); // store clones in cache
+        cache.put(key, stored);
+        return stored;
+    }
+
     public boolean hasAny(HopperKey key) throws Exception {
         ItemStack[] items = getOrLoad(key);
         for (ItemStack item : items) {

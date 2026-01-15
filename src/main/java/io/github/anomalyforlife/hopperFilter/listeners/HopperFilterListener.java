@@ -1,5 +1,7 @@
 package io.github.anomalyforlife.hopperFilter.listeners;
 
+import java.util.List;
+
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.Hopper;
@@ -65,113 +67,53 @@ public final class HopperFilterListener implements Listener {
         this.msgTooClose = msgTooClose;
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onInventoryMoveItem(InventoryMoveItemEvent event) {
-        Inventory destination = event.getDestination();
-        if (!(destination.getHolder() instanceof Hopper hopperHolder)) {
-            return;
+    private record CompiledEntry(ItemStack filterItem, FilterMatchOptions options) {}
+
+    private static List<CompiledEntry> compileFilter(ItemStack[] filter) {
+        if (filter == null || filter.length == 0) {
+            return java.util.List.of();
         }
-
-        try {
-            HopperKey key = HopperKey.fromLocation(hopperHolder.getLocation());
-            if (!filterService.hasAny(key)) {
-                return;
-            }
-
-            // Load filter once to avoid repeated DB calls.
-            ItemStack[] filter = filterService.getOrLoad(key);
-
-            ItemStack attempted = event.getItem();
-            if (allows(filter, attempted)) {
-                return;
-            }
-
-            // If the first candidate item is blocked, the hopper can get "stuck" repeatedly trying it.
-            // Workaround: cancel this move and manually pull the first allowed item from the source.
-            Inventory source = event.getSource();
-            int sourceSlot = findFirstAllowedSlot(source, destination, filter);
-            if (sourceSlot == -1) {
-                event.setCancelled(true);
-                return;
-            }
-
-            ItemStack sourceItem = source.getItem(sourceSlot);
-            if (sourceItem == null || sourceItem.getType().isAir()) {
-                event.setCancelled(true);
-                return;
-            }
-
-            ItemStack one = sourceItem.clone();
-            one.setAmount(1);
-            if (!canFit(destination, one)) {
-                event.setCancelled(true);
-                return;
-            }
-
-            event.setCancelled(true);
-
-            // Remove 1 from source slot.
-            int newAmount = sourceItem.getAmount() - 1;
-            if (newAmount <= 0) {
-                source.setItem(sourceSlot, null);
-            } else {
-                sourceItem.setAmount(newAmount);
-                source.setItem(sourceSlot, sourceItem);
-            }
-
-            // Add 1 to hopper destination.
-            destination.addItem(one);
-        } catch (Exception e) {
-            // Fail open to avoid breaking hoppers due to DB issues.
+        java.util.ArrayList<CompiledEntry> out = new java.util.ArrayList<>(filter.length);
+        for (ItemStack it : filter) {
+            if (it == null || it.getType().isAir()) continue;
+            out.add(new CompiledEntry(it, FilterMatchOptions.from(it)));
         }
+        return out;
     }
 
-    private static boolean allows(ItemStack[] filter, ItemStack movingItem) {
+    private static boolean isActive(List<CompiledEntry> compiled) {
+        return compiled != null && !compiled.isEmpty();
+    }
+
+    private static boolean allows(List<CompiledEntry> compiled, ItemStack movingItem) {
         if (movingItem == null || movingItem.getType().isAir()) {
             return true;
         }
-
-        boolean active = false;
-        for (ItemStack it : filter) {
-            if (it != null && !it.getType().isAir()) {
-                active = true;
-                break;
-            }
-        }
-        if (!active) {
+        if (!isActive(compiled)) {
             return true;
         }
-
-        for (ItemStack filterItem : filter) {
-            if (filterItem == null || filterItem.getType().isAir()) {
-                continue;
-            }
-            FilterMatchOptions options = FilterMatchOptions.from(filterItem);
-            if (ItemMatch.matches(movingItem, filterItem, options)) {
+        for (CompiledEntry entry : compiled) {
+            if (ItemMatch.matches(movingItem, entry.filterItem(), entry.options())) {
                 return true;
             }
         }
         return false;
     }
 
-    private static int findFirstAllowedSlot(Inventory source, Inventory destination, ItemStack[] filter) {
-        if (source == null) {
-            return -1;
-        }
+    private static int findFirstAllowedSlot(Inventory source, Inventory destination, List<CompiledEntry> compiled) {
+        if (source == null) return -1;
+
         ItemStack[] contents = source.getContents();
         for (int i = 0; i < contents.length; i++) {
             ItemStack it = contents[i];
-            if (it == null || it.getType().isAir()) {
-                continue;
-            }
-            if (!allows(filter, it)) {
-                continue;
-            }
+            if (it == null || it.getType().isAir()) continue;
+
+            if (!allows(compiled, it)) continue;
+
             ItemStack one = it.clone();
             one.setAmount(1);
-            if (!canFit(destination, one)) {
-                continue;
-            }
+            if (!canFit(destination, one)) continue;
+
             return i;
         }
         return -1;
@@ -198,6 +140,64 @@ public final class HopperFilterListener implements Listener {
             }
         }
         return false;
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onInventoryMoveItem(InventoryMoveItemEvent event) {
+        Inventory destination = event.getDestination();
+        if (!(destination.getHolder() instanceof Hopper hopperHolder)) {
+            return;
+        }
+
+        try {
+            HopperKey key = HopperKey.fromLocation(hopperHolder.getLocation());
+
+            // Read-only view to avoid cloning on every hopper move
+            ItemStack[] filter = filterService.getOrLoadView(key);
+            List<CompiledEntry> compiled = compileFilter(filter);
+            if (!isActive(compiled)) {
+                return;
+            }
+
+            ItemStack attempted = event.getItem();
+            if (allows(compiled, attempted)) {
+                return;
+            }
+
+            Inventory source = event.getSource();
+            int sourceSlot = findFirstAllowedSlot(source, destination, compiled);
+            if (sourceSlot == -1) {
+                event.setCancelled(true);
+                return;
+            }
+
+            ItemStack sourceItem = source.getItem(sourceSlot);
+            if (sourceItem == null || sourceItem.getType().isAir()) {
+                event.setCancelled(true);
+                return;
+            }
+
+            ItemStack one = sourceItem.clone();
+            one.setAmount(1);
+            if (!canFit(destination, one)) {
+                event.setCancelled(true);
+                return;
+            }
+
+            event.setCancelled(true);
+
+            int newAmount = sourceItem.getAmount() - 1;
+            if (newAmount <= 0) {
+                source.setItem(sourceSlot, null);
+            } else {
+                sourceItem.setAmount(newAmount);
+                source.setItem(sourceSlot, sourceItem);
+            }
+
+            destination.addItem(one);
+        } catch (Exception e) {
+            // Fail open
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)

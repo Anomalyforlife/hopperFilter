@@ -23,6 +23,7 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
     }.getType();
 
     private final ConnectionProvider connectionProvider;
+    private static final java.util.logging.Logger LOGGER = java.util.logging.Logger.getLogger(JdbcHopperFilterStorage.class.getName());
     private final Gson gson = new GsonBuilder()
         .setPrettyPrinting()
         .disableHtmlEscaping()
@@ -122,6 +123,9 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
             } catch (SQLException e) {
                 connection.rollback();
                 throw e;
+            } catch (RuntimeException e) {
+                connection.rollback();
+                throw new SQLException("Failed to serialize filter items", e);
             } finally {
                 connection.setAutoCommit(true);
             }
@@ -150,15 +154,20 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
 
     private String serializeItem(ItemStack itemStack) {
         if (itemStack == null || itemStack.getType().isAir()) {
-            return "";
+            throw new IllegalArgumentException("itemStack must not be air");
         }
         try {
             Map<String, Object> serialized = itemStack.serialize();
             // Remove Optional values that Gson cannot serialize
             serialized.values().removeIf(v -> v != null && v.getClass().getName().contains("Optional"));
-            return gson.toJson(serialized, ITEM_MAP_TYPE);
+            String json = gson.toJson(serialized, ITEM_MAP_TYPE);
+            if (json == null || json.isBlank()) {
+                throw new IllegalStateException("Serialized item JSON was blank");
+            }
+            return json;
         } catch (Exception e) {
-            return "";
+            LOGGER.warning("Failed to serialize ItemStack for storage: " + e.getMessage());
+            throw new IllegalStateException("Failed to serialize ItemStack", e);
         }
     }
 
@@ -169,7 +178,8 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
         try {
             Map<String, Object> map = gson.fromJson(json, ITEM_MAP_TYPE);
             return ItemStack.deserialize(map);
-        } catch (IllegalArgumentException ex) {
+        } catch (Exception ex) {
+            LOGGER.warning("Failed to deserialize ItemStack from storage. Data length=" + json.length() + " Error=" + ex.getMessage());
             return null;
         }
     }

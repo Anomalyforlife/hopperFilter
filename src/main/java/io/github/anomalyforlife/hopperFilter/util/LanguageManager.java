@@ -57,20 +57,16 @@ public final class LanguageManager {
     public LanguageManager(Plugin plugin) {
         Objects.requireNonNull(plugin, "plugin");
         
-        // Carica lang.yml da risorse e cartella plugin
         plugin.saveResource("lang.yml", false);
         File langFile = new File(plugin.getDataFolder(), "lang.yml");
         FileConfiguration config = YamlConfiguration.loadConfiguration(langFile);
         
-        // Carica prefisso
         this.prefix = config.getString("prefix", "§7[§dHopperFilter§7] §r");
         
-        // GUI
         this.mainGuiTitle = config.getString("gui.main-title", "§c§n§lHopper§r §d§n§lFilter§r");
         this.configGuiTitle = config.getString("gui.config-title", "§6Filter Item Options");
         this.clickToChange = config.getString("gui.click-to-change", "§7Clicca per cambiare.");
         
-        // Messaggi
         this.msgAdded = config.getString("messages.added", "§a§lItem added to Filter!");
         this.msgAddedWarning = config.getString("messages.added-warning", "§a§lItem added to Filter! §c§lWARNING: §6§lIt will catch every variant of this item!");
         this.msgAlready = config.getString("messages.already-in-filter", "§6§lItem is already in Filter!");
@@ -82,12 +78,10 @@ public final class LanguageManager {
         this.msgMustHaveBreakPerm = config.getString("messages.must-have-break-perm", "§c§lYou must have permission to break the Hopper Filter!");
         this.msgTooCloseToFilteredHopper = config.getString("messages.too-close-to-filtered-hopper", "§c§lYou are too close to a Filtered Hopper!");
         
-        // Errori
         this.errorDbError = config.getString("errors.db-error", "§cDB error: {error}");
         this.errorEmptySlot = config.getString("errors.empty-slot", "§cLo slot selezionato è vuoto.");
         this.errorItemNoLongerPresent = config.getString("errors.item-no-longer-present", "§cL'oggetto non è più presente.");
         
-        // Comandi
         this.cmdReloadSuccess = config.getString("commands.reload-success", "§aReloaded.");
         this.cmdNoPermission = config.getString("commands.no-permission", "§cNo permission.");
         this.cmdUsage = config.getString("commands.usage", "§cUsage: /{command} <reload|info|clear>");
@@ -98,7 +92,6 @@ public final class LanguageManager {
         this.cmdClearedViaCommand = config.getString("commands.cleared-via-command", "§aCleared filter.");
         this.cmdUnknownSubcommand = config.getString("commands.unknown-subcommand", "§cUnknown subcommand.");
         
-        // Opzioni di matching
         this.matchMaterial = new OptionTexts(
             config.getString("gui.options.match-material.name", "Match Material"),
             config.getString("gui.options.match-material.description", "Richiede lo stesso materiale prima di lasciare passare l'oggetto."),
@@ -130,7 +123,6 @@ public final class LanguageManager {
             config.getString("gui.options.match-tag.off", "§cOFF")
         );
 
-        // GUI selezione tag
         this.tagSelectTitle = config.getString("gui.tag-select.title", "§6Select Tag");
         this.tagSelectBack = config.getString("gui.tag-select.back", "§7Back");
         this.tagSelectPrev = config.getString("gui.tag-select.prev", "§ePrevious");

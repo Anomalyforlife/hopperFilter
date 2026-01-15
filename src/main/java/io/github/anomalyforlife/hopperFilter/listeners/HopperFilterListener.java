@@ -152,7 +152,6 @@ public final class HopperFilterListener implements Listener {
         try {
             HopperKey key = HopperKey.fromLocation(hopperHolder.getLocation());
 
-            // Read-only view to avoid cloning on every hopper move
             ItemStack[] filter = filterService.getOrLoadView(key);
             List<CompiledEntry> compiled = compileFilter(filter);
             if (!isActive(compiled)) {
@@ -196,7 +195,6 @@ public final class HopperFilterListener implements Listener {
 
             destination.addItem(one);
         } catch (Exception e) {
-            // Fail open
         }
     }
 
@@ -251,14 +249,12 @@ public final class HopperFilterListener implements Listener {
                     return;
                 }
 
-                // Add item: left click in player's inventory
                 if (event.getClick() == ClickType.LEFT && event.getClickedInventory() != null && event.getClickedInventory().equals(event.getView().getBottomInventory())) {
                     ItemStack clicked = event.getCurrentItem();
                     gui.addFromPlayerInventory(player, top, clicked);
                     return;
                 }
 
-                // Remove item: right click inside GUI
                 if (event.getClick().isRightClick() && event.getClickedInventory() != null && event.getClickedInventory().equals(top)) {
                     int slot = event.getSlot();
                     gui.removeAt(player, top, slot);
@@ -321,7 +317,6 @@ public final class HopperFilterListener implements Listener {
             filterService.clearAndCache(key);
             messages.actionBar(player, msgCleared);
         } catch (Exception e) {
-            // If DB is down, don't allow breaking to avoid orphaned data confusion.
             messages.send(player, "§cDB error: " + e.getMessage());
             event.setCancelled(true);
         }
@@ -341,7 +336,6 @@ public final class HopperFilterListener implements Listener {
                 }
             }
         } catch (Exception e) {
-            // ignore
         }
     }
 
@@ -373,7 +367,6 @@ public final class HopperFilterListener implements Listener {
                 }
             }
         } catch (Exception e) {
-            // ignore
         }
     }
 }

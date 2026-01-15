@@ -52,7 +52,6 @@ public final class FilterMatchOptions {
     }
 
     public static FilterMatchOptions defaults() {
-        // Default behavior: match type + durability, but do NOT match name/NBT unless explicitly enabled.
         return new FilterMatchOptions(true, true, false, false, false, null);
     }
 
@@ -70,7 +69,6 @@ public final class FilterMatchOptions {
         byte durability = deserialize(container.get(KEY_DURABILITY, PersistentDataType.BYTE), ENABLED);
         byte nbt = deserialize(container.get(KEY_NBT, PersistentDataType.BYTE), DISABLED);
         byte name = deserialize(container.get(KEY_NAME, PersistentDataType.BYTE), DISABLED);
-        // matchTag must default to OFF for existing items that don't have the key.
         byte tag = deserialize(container.get(KEY_TAG, PersistentDataType.BYTE), DISABLED);
 
         String tagName = container.get(KEY_TAG_NAME, PersistentDataType.STRING);
@@ -78,7 +76,6 @@ public final class FilterMatchOptions {
             tagName = null;
         }
 
-        // Defensive: don't allow tag matching without a concrete selected tag.
         boolean tagEnabled = tag == ENABLED && tagName != null;
         return new FilterMatchOptions(type == ENABLED, durability == ENABLED, nbt == ENABLED, name == ENABLED, tagEnabled, tagName);
     }
@@ -149,7 +146,6 @@ public final class FilterMatchOptions {
     }
 
     public FilterMatchOptions withMatchTag(boolean value) {
-        // If disabling, also clear the selected tag.
         return new FilterMatchOptions(matchType, matchDurability, matchNBT, matchName, value, value ? matchTagName : null);
     }
 
@@ -157,7 +153,6 @@ public final class FilterMatchOptions {
         if (tagName != null && tagName.isBlank()) {
             tagName = null;
         }
-        // Selecting a tag implies enabling tag matching.
         return new FilterMatchOptions(matchType, matchDurability, matchNBT, matchName, tagName != null, tagName);
     }
 

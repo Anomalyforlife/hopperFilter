@@ -160,7 +160,6 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
 
     @Override
     public void close() {
-        // Nothing to close for plain JDBC connections.
     }
 
     private String serializeItem(ItemStack itemStack) {
@@ -168,7 +167,6 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
             return null;
         }
 
-        // Preferred: binary (base64) storage. Much more robust across metas/PDC.
         try {
             byte[] bytes = serializeItemToBytes(itemStack);
             return BIN_PREFIX + Base64.getEncoder().encodeToString(bytes);
@@ -176,7 +174,6 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
             LOGGER.log(Level.WARNING, "Binary ItemStack serialization failed, falling back to JSON: " + t.getMessage(), t);
         }
 
-        // Fallback: legacy JSON map (backward compatibility)
         try {
             Map<String, Object> serialized = itemStack.serialize();
             serialized.values().removeIf(v -> v != null && v.getClass().getName().contains("Optional"));
@@ -192,7 +189,6 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
     }
 
     private static byte[] serializeItemToBytes(ItemStack itemStack) throws IOException {
-        // Use ItemStack#serializeAsBytes when present (Paper/Spigot), otherwise fallback to BukkitObjectOutputStream.
         try {
             var method = ItemStack.class.getMethod("serializeAsBytes");
             Object result = method.invoke(itemStack);
@@ -200,9 +196,7 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
                 return bytes;
             }
         } catch (ReflectiveOperationException ignored) {
-            // fall back below
         } catch (Exception e) {
-            // fall back below
         }
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -254,7 +248,6 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
             return null;
         }
 
-        // Prefer ItemStack#deserializeBytes when present.
         try {
             var method = ItemStack.class.getMethod("deserializeBytes", byte[].class);
             Object result = method.invoke(null, (Object) bytes);
@@ -262,9 +255,7 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
                 return stack;
             }
         } catch (ReflectiveOperationException ignored) {
-            // fall back below
         } catch (Exception e) {
-            // fall back below
         }
 
         Object ois = null;

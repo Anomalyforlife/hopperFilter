@@ -35,8 +35,6 @@ dependencies {
 
 tasks.shadowJar {
     archiveClassifier.set("")
-    // NOTE: Relocation requires bytecode remapping. On some setups Shadow's ASM
-    // can't read Java 21 class files (major version 65), causing build failures.
 }
 
 tasks.build {

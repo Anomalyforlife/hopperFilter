@@ -54,7 +54,7 @@ public final class FilterService {
             loaded = new ItemStack[size];
         }
 
-        ItemStack[] stored = cloneFilter(loaded); // store clones in cache
+        ItemStack[] stored = cloneFilter(loaded);
         cache.put(key, stored);
         return stored;
     }

@@ -50,13 +50,11 @@ public final class ItemMatch {
         boolean sameType = movingItem.getType() == filterItem.getType();
         if (options.matchTag()) {
             String selectedTag = options.matchTagName();
-            // If no tag is selected, do NOT widen matching: require same type.
             if (selectedTag == null || selectedTag.isBlank()) {
                 if (!sameType) {
                     return false;
                 }
             } else {
-                // Tag matching must still constrain results even if matchType is disabled.
                 if (!sameType && !bothInTag(selectedTag, filterItem.getType(), movingItem.getType())) {
                     return false;
                 }
@@ -102,7 +100,6 @@ public final class ItemMatch {
                     names.add(field.getName());
                 }
             } catch (Throwable ignored) {
-                // Not a Material tag (or otherwise incompatible), skip.
             }
         }
 
@@ -144,7 +141,6 @@ public final class ItemMatch {
                 return tag;
             }
         } catch (ReflectiveOperationException ignored) {
-            // ignore
         }
 
         MATERIAL_TAG_MISSING.add(tagFieldName);
@@ -180,8 +176,6 @@ public final class ItemMatch {
         Map<String, Object> serialized = new HashMap<>(meta.serialize());
         serialized.remove("display");
         serialized.remove("damage");
-        // FilterMatchOptions are stored in the PersistentDataContainer; that would otherwise
-        // make a filtered item never equal to a normal item when matchNBT is enabled.
         serialized.remove("PublicBukkitValues");
         return serialized;
     }

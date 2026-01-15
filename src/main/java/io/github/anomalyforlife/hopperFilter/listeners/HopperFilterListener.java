@@ -23,8 +23,10 @@ import io.github.anomalyforlife.hopperFilter.gui.FilterMatchConfigGui;
 import io.github.anomalyforlife.hopperFilter.gui.FilterMatchConfigGuiHolder;
 import io.github.anomalyforlife.hopperFilter.gui.FilterTagSelectGui;
 import io.github.anomalyforlife.hopperFilter.gui.FilterTagSelectGuiHolder;
+import io.github.anomalyforlife.hopperFilter.model.FilterMatchOptions;
 import io.github.anomalyforlife.hopperFilter.model.HopperKey;
 import io.github.anomalyforlife.hopperFilter.service.FilterService;
+import io.github.anomalyforlife.hopperFilter.util.ItemMatch;
 import io.github.anomalyforlife.hopperFilter.util.Messages;
 
 public final class HopperFilterListener implements Listener {
@@ -75,13 +77,127 @@ public final class HopperFilterListener implements Listener {
             if (!filterService.hasAny(key)) {
                 return;
             }
-            ItemStack item = event.getItem();
-            if (!gui.allows(key, item)) {
-                event.setCancelled(true);
+
+            // Load filter once to avoid repeated DB calls.
+            ItemStack[] filter = filterService.getOrLoad(key);
+
+            ItemStack attempted = event.getItem();
+            if (allows(filter, attempted)) {
+                return;
             }
+
+            // If the first candidate item is blocked, the hopper can get "stuck" repeatedly trying it.
+            // Workaround: cancel this move and manually pull the first allowed item from the source.
+            Inventory source = event.getSource();
+            int sourceSlot = findFirstAllowedSlot(source, destination, filter);
+            if (sourceSlot == -1) {
+                event.setCancelled(true);
+                return;
+            }
+
+            ItemStack sourceItem = source.getItem(sourceSlot);
+            if (sourceItem == null || sourceItem.getType().isAir()) {
+                event.setCancelled(true);
+                return;
+            }
+
+            ItemStack one = sourceItem.clone();
+            one.setAmount(1);
+            if (!canFit(destination, one)) {
+                event.setCancelled(true);
+                return;
+            }
+
+            event.setCancelled(true);
+
+            // Remove 1 from source slot.
+            int newAmount = sourceItem.getAmount() - 1;
+            if (newAmount <= 0) {
+                source.setItem(sourceSlot, null);
+            } else {
+                sourceItem.setAmount(newAmount);
+                source.setItem(sourceSlot, sourceItem);
+            }
+
+            // Add 1 to hopper destination.
+            destination.addItem(one);
         } catch (Exception e) {
             // Fail open to avoid breaking hoppers due to DB issues.
         }
+    }
+
+    private static boolean allows(ItemStack[] filter, ItemStack movingItem) {
+        if (movingItem == null || movingItem.getType().isAir()) {
+            return true;
+        }
+
+        boolean active = false;
+        for (ItemStack it : filter) {
+            if (it != null && !it.getType().isAir()) {
+                active = true;
+                break;
+            }
+        }
+        if (!active) {
+            return true;
+        }
+
+        for (ItemStack filterItem : filter) {
+            if (filterItem == null || filterItem.getType().isAir()) {
+                continue;
+            }
+            FilterMatchOptions options = FilterMatchOptions.from(filterItem);
+            if (ItemMatch.matches(movingItem, filterItem, options)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static int findFirstAllowedSlot(Inventory source, Inventory destination, ItemStack[] filter) {
+        if (source == null) {
+            return -1;
+        }
+        ItemStack[] contents = source.getContents();
+        for (int i = 0; i < contents.length; i++) {
+            ItemStack it = contents[i];
+            if (it == null || it.getType().isAir()) {
+                continue;
+            }
+            if (!allows(filter, it)) {
+                continue;
+            }
+            ItemStack one = it.clone();
+            one.setAmount(1);
+            if (!canFit(destination, one)) {
+                continue;
+            }
+            return i;
+        }
+        return -1;
+    }
+
+    private static boolean canFit(Inventory inventory, ItemStack stack) {
+        if (inventory == null) {
+            return false;
+        }
+        if (stack == null || stack.getType().isAir()) {
+            return false;
+        }
+
+        int max = Math.min(stack.getMaxStackSize(), inventory.getMaxStackSize());
+        for (ItemStack existing : inventory.getContents()) {
+            if (existing == null || existing.getType().isAir()) {
+                return true;
+            }
+            if (!existing.isSimilar(stack)) {
+                continue;
+            }
+            if (existing.getAmount() < max) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)

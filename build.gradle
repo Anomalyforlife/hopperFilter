@@ -124,7 +124,7 @@ hangarPublish {
 
             platforms {
                 register(io.papermc.hangarpublishplugin.model.Platforms.PAPER) {
-                    jar.set(tasks.shadowJar.flatMap { it.archiveFile })
+                    jar.set(tasks.named("shadowJar").flatMap { it.archiveFile })
                     platformVersions.set(
                             (property("paperVersion") as String)
                                     .split(",")

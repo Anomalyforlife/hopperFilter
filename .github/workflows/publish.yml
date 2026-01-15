@@ -28,4 +28,4 @@ jobs:
         env:
           # Make sure you have added a repository secret in the repository's settings
           HANGAR_API_TOKEN: ${{ secrets.HANGAR_API_TOKEN }}
-        run: gradle build publishPluginPublicationToHangar --stacktrace
+        run: gradle build --stacktrace

@@ -30,10 +30,11 @@ repositories {
 dependencies {
     compileOnly("io.papermc.paper:paper-api:${paperApiVersion}")
 
-    implementation("com.google.code.gson:gson:2.10.1")
-    implementation("com.zaxxer:HikariCP:5.1.0")
-    implementation("org.xerial:sqlite-jdbc:3.45.3.0")
-    implementation("com.mysql:mysql-connector-j:8.4.0")
+    // Mantieni queste dipendenze SOLO per compilare (Paper le scaricherà via paper-plugin.yml)
+    compileOnly "com.zaxxer:HikariCP:5.1.0"
+    compileOnly "org.xerial:sqlite-jdbc:3.45.3.0"
+    compileOnly "com.mysql:mysql-connector-j:8.3.0"
+    compileOnly "com.google.code.gson:gson:2.10.1"
 }
 
 tasks.shadowJar {
@@ -124,7 +125,9 @@ hangarPublish {
 
             platforms {
                 register(io.papermc.hangarpublishplugin.model.Platforms.PAPER) {
-                    jar.set(tasks.named("shadowJar").flatMap { it.archiveFile })
+                    // Carica il jar "thin" su Hangar (molto più piccolo del shadowJar)
+                    jar.set(tasks.named("jar").flatMap { it.archiveFile })
+
                     platformVersions.set(
                             (property("paperVersion") as String)
                                     .split(",")
@@ -133,6 +136,16 @@ hangarPublish {
                     )
                 }
             }
+        }
+    }
+}
+
+tasks.named("jar").configure {
+    doLast {
+        def f = archiveFile.get().asFile
+        def maxBytes = 15L * 1024L * 1024L
+        if (f.length() > maxBytes) {
+            throw new GradleException("Jar too large for Hangar (>15MB): ${f.name} is ${f.length()} bytes")
         }
     }
 }

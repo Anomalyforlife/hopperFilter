@@ -1,0 +1,10 @@
+name: HopperFilter
+version: ${version}
+main: io.github.anomalyforlife.hopperFilter.HopperFilter
+api-version: "1.21"
+
+libraries:
+  - com.zaxxer:HikariCP:5.1.0
+  - org.xerial:sqlite-jdbc:3.45.3.0
+  - com.mysql:mysql-connector-j:8.3.0
+  - com.google.code.gson:gson:2.10.1

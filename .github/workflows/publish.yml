@@ -1,0 +1,31 @@
+name: Publish to Hangar
+on:
+  push:
+    branches:
+      # Add any additional branches you want to automatically publish from
+      - main # Assuming your main branch is called 'main'
+
+jobs:
+  publish:
+    # TODO: Optional, make sure the task only runs on pushes to your repository and doesn't fail on forks. Uncomment the line below and put the repo owner into the quotes
+    # if: github.repository_owner == 'anomalyforlife'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.11.1
+      - name: Publish
+        env:
+          # Make sure you have added a repository secret in the repository's settings
+          HANGAR_API_TOKEN: ${{ secrets.HANGAR_API_TOKEN }}
+        run: gradle build publishPluginPublicationToHangar --stacktrace

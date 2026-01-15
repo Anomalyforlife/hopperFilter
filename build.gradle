@@ -2,7 +2,10 @@ plugins {
     id 'java'
     id("xyz.jpenilla.run-paper") version "2.3.1"
     id "com.github.johnrengelman.shadow" version "8.1.1"
+    id("io.papermc.hangar-publish-plugin") version "0.1.2"
 }
+
+import java.io.ByteArrayOutputStream
 
 group = 'io.github.anomalyforlife'
 version = providers.gradleProperty('pluginVersion').get()
@@ -72,5 +75,64 @@ processResources {
     filteringCharset 'UTF-8'
     filesMatching('plugin.yml') {
         expand props
+    }
+}
+
+def executeGitCommand = { List<String> command ->
+    try {
+        def out = new ByteArrayOutputStream()
+        def result = exec {
+            commandLine command
+            standardOutput = out
+            errorOutput = out
+            ignoreExitValue = true
+        }
+        if (result.exitValue != 0) {
+            return ""
+        }
+        return out.toString("UTF-8").trim()
+    } catch (Throwable ignored) {
+        return ""
+    }
+}
+
+def latestCommitMessage = { ->
+    executeGitCommand(["git", "log", "-1", "--pretty=%B"])
+}
+
+def versionString = project.version.toString()
+def isRelease = !versionString.contains('-')
+
+def runNumber = System.getenv("GITHUB_RUN_NUMBER")
+def suffixedVersion = (!isRelease && runNumber != null && !runNumber.isBlank())
+        ? "${versionString}+${runNumber}"
+        : versionString
+
+def changelogContent = latestCommitMessage()
+if (changelogContent == null || changelogContent.isBlank()) {
+    changelogContent = "Automated publish."
+}
+
+hangarPublish {
+    publications {
+        register("plugin") {
+            version.set(suffixedVersion)
+            channel.set(isRelease ? "Release" : "Snapshot")
+            changelog.set(changelogContent)
+            id.set("hopperfilter")
+            apiKey.set(System.getenv("HANGAR_API_TOKEN"))
+
+            platforms {
+                register(io.papermc.hangarpublishplugin.model.Platforms.PAPER) {
+                    jar.set(tasks.shadowJar.flatMap { it.archiveFile })
+                    platformVersions.set(
+                            (property("paperVersion") as String)
+                                    .split(",")
+                                    .collect { it.trim() }
+                                    .findAll { !it.isBlank() }
+                    )
+                }
+            }
+        }
     }
 }

@@ -3,7 +3,7 @@ on:
   push:
     branches:
       # Add any additional branches you want to automatically publish from
-      - main # Assuming your main branch is called 'main'
+      - master
 
 jobs:
   publish:

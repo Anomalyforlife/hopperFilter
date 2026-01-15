@@ -1,0 +1,31 @@
+# HopperFilter configuration
+
+storage:
+  # sqlite (default) or mysql
+  type: sqlite
+
+  sqlite:
+    file: filters.db
+
+  mysql:
+    host: "127.0.0.1"
+    port: 3306
+    database: "hopperfilter"
+    username: "whatever"
+    password: "please-change-me-im-scared"
+    useSSL: false
+    parameters: "useUnicode=true&characterEncoding=utf8&serverTimezone=UTC"
+
+  pool:
+    # For sqlite, this will be forced to 1 internally.
+    maximumPoolSize: 10
+    minimumIdle: 2
+    connectionTimeoutMillis: 10000
+
+filter:
+  # Filter capacity. Must be a multiple of 9 (rows) and <= 54.
+  # Default 54 (6 rows).
+  size: 54
+
+tnt:
+  blockedRadius: 5

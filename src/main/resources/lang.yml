@@ -1,0 +1,83 @@
+# HopperFilter Language File
+# Tutti i testi del plugin possono essere modificati qui
+
+# Prefisso del plugin
+prefix: "§7[§dHopperFilter§7] §r"
+
+# Titolo GUI principale
+gui:
+  main-title: "§c§n§lHopper§r §d§n§lFilter§r"
+  
+  # GUI di configurazione opzioni di matching per ogni item
+  config-title: "§6Filter Item Options"
+  
+  # Descrizioni delle opzioni nella GUI di configurazione
+  options:
+    match-material:
+      name: "Match Material"
+      description: "Richiede lo stesso materiale prima di lasciare passare l'oggetto."
+      on: "§aON"
+      off: "§cOFF"
+    
+    match-durability:
+      name: "Match Durability"
+      description: "Controlla che la durabilita dell'oggetto coincidano."
+      on: "§aON"
+      off: "§cOFF"
+    
+    match-name:
+      name: "Match Name"
+      description: "Verifica il nome personalizzato dell'oggetto."
+      on: "§aON"
+      off: "§cOFF"
+    
+    match-nbt:
+      name: "Match NBT"
+      description: "Considera incantesimi, modelli e altri dati NBT."
+      on: "§aON"
+      off: "§cOFF"
+  
+  # Tooltip nella GUI di configurazione
+  click-to-change: "§7Clicca per cambiare."
+
+# Messaggi di feedback
+messages:
+  # Messaggi di aggiunta item
+  added: "§a§lItem added to Filter!"
+  added-warning: "§a§lItem added to Filter! §c§lWARNING: §6§lIt will catch every variant of this item!"
+  already-in-filter: "§6§lItem is already in Filter!"
+  filter-full: "§c§lFilter is full!"
+  
+  # Messaggio di rimozione item
+  removed: "§4§lItem removed from Filter!"
+  
+  # Messaggio di pulizia filtro
+  cleared: "§a§lFilter cleared!"
+  
+  # Messaggi di break del hopper
+  must-sneak-to-break: "§c§lYou must shift to break the Hopper Filter!"
+  must-have-break-perm: "§c§lYou must have permission to break the Hopper Filter!"
+  
+  # Messaggio per TNT vicino a hopper filtrato
+  too-close-to-filtered-hopper: "§c§lYou are too close to a Filtered Hopper!"
+  
+  # Messaggi per la configurazione delle opzioni
+  option-toggle-feedback: "§a{option_name} {state}"
+
+# Messaggi di errore
+errors:
+  db-error: "§cDB error: {error}"
+  empty-slot: "§cLo slot selezionato è vuoto."
+  item-no-longer-present: "§cL'oggetto non è più presente."
+
+# Messaggi di comando
+commands:
+  reload-success: "§aReloaded."
+  no-permission: "§cNo permission."
+  usage: "§cUsage: /{command} <reload|info|clear>"
+  only-players: "§cOnly players can use this."
+  look-at-hopper: "§cLook at a hopper (within 6 blocks)."
+  hopper-filtered: "§aThis hopper is filtered."
+  hopper-not-filtered: "§7This hopper has no filter."
+  cleared-via-command: "§aCleared filter."
+  unknown-subcommand: "§cUnknown subcommand."

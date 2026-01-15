@@ -1,0 +1,39 @@
+name: HopperFilter
+version: '${version}'
+main: io.github.anomalyforlife.hopperFilter.HopperFilter
+api-version: '1.21'
+load: STARTUP
+authors: [ Anomalyforlife ]
+website: italiarevenge.com
+description: A simple plugin that allows you to filter items that can be inserted into hoppers.
+
+libraries:
+  - org.xerial:sqlite-jdbc:3.45.3.0
+  - com.mysql:mysql-connector-j:8.4.0
+  - com.google.code.gson:gson:2.10.1
+
+commands:
+  hopperfilter:
+    description: HopperFilter admin commands
+    usage: "/hopperfilter <reload|info|clear>"
+    aliases: [ hf ]
+
+permissions:
+  hopperfilter.opengui:
+    description: Allows opening the hopper filter GUI
+    default: false
+  hopperfilter.use:
+    description: Allows using the hopper filter GUI (add/remove items)
+    default: false
+  hopperfilter.break:
+    description: Allows breaking filtered hoppers (must sneak)
+    default: false
+  hopperfilter.admin.reload:
+    description: Allows reloading HopperFilter config
+    default: op
+  hopperfilter.admin.info:
+    description: Allows viewing hopper filter info
+    default: op
+  hopperfilter.admin.clear:
+    description: Allows clearing hopper filters via command
+    default: op

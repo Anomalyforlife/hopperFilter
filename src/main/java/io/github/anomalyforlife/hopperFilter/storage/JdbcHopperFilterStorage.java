@@ -1,0 +1,176 @@
+package io.github.anomalyforlife.hopperFilter.storage;
+
+import java.lang.reflect.Type;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.Objects;
+
+import org.bukkit.inventory.ItemStack;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+
+import io.github.anomalyforlife.hopperFilter.model.HopperKey;
+
+public final class JdbcHopperFilterStorage implements HopperFilterStorage {
+    private static final String TABLE_NAME = "hopper_filter_items";
+    private static final Type ITEM_MAP_TYPE = new TypeToken<Map<String, Object>>() {
+    }.getType();
+
+    private final ConnectionProvider connectionProvider;
+    private final Gson gson = new GsonBuilder()
+        .setPrettyPrinting()
+        .disableHtmlEscaping()
+        .create();
+
+    public JdbcHopperFilterStorage(ConnectionProvider connectionProvider) {
+        this.connectionProvider = Objects.requireNonNull(connectionProvider, "connectionProvider");
+    }
+
+    @Override
+    public void init() throws SQLException {
+        try (Connection connection = connectionProvider.getConnection()) {
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "CREATE TABLE IF NOT EXISTS " + TABLE_NAME + " (" +
+                            "world_uuid TEXT NOT NULL," +
+                            "x INTEGER NOT NULL," +
+                            "y INTEGER NOT NULL," +
+                            "z INTEGER NOT NULL," +
+                            "slot INTEGER NOT NULL," +
+                            "item TEXT NOT NULL," +
+                            "PRIMARY KEY(world_uuid, x, y, z, slot)" +
+                            ")"
+            )) {
+                ps.executeUpdate();
+            }
+        }
+    }
+
+    @Override
+    public ItemStack[] loadFilter(HopperKey key, int size) throws SQLException {
+        ItemStack[] items = new ItemStack[size];
+        Arrays.fill(items, null);
+
+        try (Connection connection = connectionProvider.getConnection()) {
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "SELECT slot, item FROM " + TABLE_NAME + " WHERE world_uuid=? AND x=? AND y=? AND z=?"
+            )) {
+                ps.setString(1, key.worldUuid().toString());
+                ps.setInt(2, key.x());
+                ps.setInt(3, key.y());
+                ps.setInt(4, key.z());
+
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        int slot = rs.getInt(1);
+                        String json = rs.getString(2);
+                        if (slot < 0 || slot >= size || json == null) {
+                            continue;
+                        }
+                        items[slot] = deserializeItem(json);
+                    }
+                }
+            }
+        }
+        return items;
+    }
+
+    @Override
+    public void saveFilter(HopperKey key, ItemStack[] items) throws SQLException {
+        if (items == null || items.length == 0) {
+            throw new IllegalArgumentException("items must not be empty");
+        }
+
+        try (Connection connection = connectionProvider.getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                try (PreparedStatement delete = connection.prepareStatement(
+                        "DELETE FROM " + TABLE_NAME + " WHERE world_uuid=? AND x=? AND y=? AND z=?"
+                )) {
+                    delete.setString(1, key.worldUuid().toString());
+                    delete.setInt(2, key.x());
+                    delete.setInt(3, key.y());
+                    delete.setInt(4, key.z());
+                    delete.executeUpdate();
+                }
+
+                try (PreparedStatement insert = connection.prepareStatement(
+                        "INSERT INTO " + TABLE_NAME + "(world_uuid,x,y,z,slot,item) VALUES (?,?,?,?,?,?)"
+                )) {
+                    for (int slot = 0; slot < items.length; slot++) {
+                        ItemStack item = items[slot];
+                        if (item == null || item.getType().isAir()) {
+                            continue;
+                        }
+                        insert.setString(1, key.worldUuid().toString());
+                        insert.setInt(2, key.x());
+                        insert.setInt(3, key.y());
+                        insert.setInt(4, key.z());
+                        insert.setInt(5, slot);
+                        insert.setString(6, serializeItem(item));
+                        insert.addBatch();
+                    }
+                    insert.executeBatch();
+                }
+
+                connection.commit();
+            } catch (SQLException e) {
+                connection.rollback();
+                throw e;
+            } finally {
+                connection.setAutoCommit(true);
+            }
+        }
+    }
+
+    @Override
+    public void deleteFilter(HopperKey key) throws SQLException {
+        try (Connection connection = connectionProvider.getConnection()) {
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "DELETE FROM " + TABLE_NAME + " WHERE world_uuid=? AND x=? AND y=? AND z=?"
+            )) {
+                ps.setString(1, key.worldUuid().toString());
+                ps.setInt(2, key.x());
+                ps.setInt(3, key.y());
+                ps.setInt(4, key.z());
+                ps.executeUpdate();
+            }
+        }
+    }
+
+    @Override
+    public void close() {
+        // Nothing to close for plain JDBC connections.
+    }
+
+    private String serializeItem(ItemStack itemStack) {
+        if (itemStack == null || itemStack.getType().isAir()) {
+            return "";
+        }
+        try {
+            Map<String, Object> serialized = itemStack.serialize();
+            // Remove Optional values that Gson cannot serialize
+            serialized.values().removeIf(v -> v != null && v.getClass().getName().contains("Optional"));
+            return gson.toJson(serialized, ITEM_MAP_TYPE);
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private ItemStack deserializeItem(String json) {
+        if (json == null || json.isEmpty()) {
+            return null;
+        }
+        try {
+            Map<String, Object> map = gson.fromJson(json, ITEM_MAP_TYPE);
+            return ItemStack.deserialize(map);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+}

@@ -52,7 +52,8 @@ public final class FilterMatchOptions {
     }
 
     public static FilterMatchOptions defaults() {
-        return new FilterMatchOptions(true, true, true, true, false, null);
+        // Default behavior: match type + durability, but do NOT match name/NBT unless explicitly enabled.
+        return new FilterMatchOptions(true, true, false, false, false, null);
     }
 
     public static FilterMatchOptions from(ItemStack item) {
@@ -67,8 +68,8 @@ public final class FilterMatchOptions {
         var container = meta.getPersistentDataContainer();
         byte type = deserialize(container.get(KEY_TYPE, PersistentDataType.BYTE), ENABLED);
         byte durability = deserialize(container.get(KEY_DURABILITY, PersistentDataType.BYTE), ENABLED);
-        byte nbt = deserialize(container.get(KEY_NBT, PersistentDataType.BYTE), ENABLED);
-        byte name = deserialize(container.get(KEY_NAME, PersistentDataType.BYTE), ENABLED);
+        byte nbt = deserialize(container.get(KEY_NBT, PersistentDataType.BYTE), DISABLED);
+        byte name = deserialize(container.get(KEY_NAME, PersistentDataType.BYTE), DISABLED);
         // matchTag must default to OFF for existing items that don't have the key.
         byte tag = deserialize(container.get(KEY_TAG, PersistentDataType.BYTE), DISABLED);
 

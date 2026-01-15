@@ -156,7 +156,7 @@ public final class HopperFilterListener implements Listener {
         if (top.getHolder() instanceof FilterMatchConfigGuiHolder configHolder) {
             event.setCancelled(true);
             try {
-                if (event.getSlot() == 6) {
+                if (event.getSlot() == 8) {
                     tagSelectGui.open(player, configHolder.key(), configHolder.slot());
                     return;
                 }

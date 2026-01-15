@@ -69,60 +69,60 @@ public final class FilterMatchConfigGui {
         filter[targetSlot] = item;
         filterService.saveAndCache(holder.key(), filter);
         inventory.setItem(option.slot(), option.createItem(updated, languageManager));
-        inventory.setItem(4, item.clone());
+        inventory.setItem(0, item.clone());
         messages.actionBar(player, option.message(updated, languageManager));
     }
 
     private void populateInventory(Inventory inventory, ItemStack entry) {
         FilterMatchOptions options = FilterMatchOptions.from(entry);
         ItemStack filler = createFillerPane();
-        inventory.setItem(0, filler.clone());
-        inventory.setItem(1, createOptionEntry(1, languageManager.getMatchMaterial(), options).createItem(options, languageManager));
-        inventory.setItem(2, createOptionEntry(2, languageManager.getMatchDurability(), options).createItem(options, languageManager));
-        inventory.setItem(3, createOptionEntry(3, languageManager.getMatchName(), options).createItem(options, languageManager));
-        inventory.setItem(4, entry.clone());
-        inventory.setItem(5, createOptionEntry(5, languageManager.getMatchNBT(), options).createItem(options, languageManager));
-        inventory.setItem(6, createOptionEntry(6, languageManager.getMatchTag(), options).createItem(options, languageManager));
-        inventory.setItem(7, filler.clone());
-        inventory.setItem(8, filler.clone());
+        inventory.setItem(0, entry.clone());
+        inventory.setItem(1, filler.clone());
+        inventory.setItem(2, filler.clone());
+        inventory.setItem(3, filler.clone());
+        inventory.setItem(4, createOptionEntry(4, languageManager.getMatchMaterial(), options).createItem(options, languageManager));
+        inventory.setItem(5, createOptionEntry(5, languageManager.getMatchDurability(), options).createItem(options, languageManager));
+        inventory.setItem(6, createOptionEntry(6, languageManager.getMatchName(), options).createItem(options, languageManager));
+        inventory.setItem(7, createOptionEntry(7, languageManager.getMatchNBT(), options).createItem(options, languageManager));
+        inventory.setItem(8, createOptionEntry(8, languageManager.getMatchTag(), options).createItem(options, languageManager));
     }
 
     private OptionEntry optionForSlot(int slot) {
         return switch (slot) {
-            case 1 -> createOptionEntry(1, languageManager.getMatchMaterial(), null);
-            case 2 -> createOptionEntry(2, languageManager.getMatchDurability(), null);
-            case 3 -> createOptionEntry(3, languageManager.getMatchName(), null);
-            case 5 -> createOptionEntry(5, languageManager.getMatchNBT(), null);
-            case 6 -> createOptionEntry(6, languageManager.getMatchTag(), null);
+            case 4 -> createOptionEntry(4, languageManager.getMatchMaterial(), null);
+            case 5 -> createOptionEntry(5, languageManager.getMatchDurability(), null);
+            case 6 -> createOptionEntry(6, languageManager.getMatchName(), null);
+            case 7 -> createOptionEntry(7, languageManager.getMatchNBT(), null);
+            case 8 -> createOptionEntry(8, languageManager.getMatchTag(), null);
             default -> null;
         };
     }
 
     private OptionEntry createOptionEntry(int slot, LanguageManager.OptionTexts texts, FilterMatchOptions options) {
         Material material = switch (slot) {
-            case 1 -> Material.DIAMOND;
-            case 2 -> Material.IRON_PICKAXE;
-            case 3 -> Material.NAME_TAG;
-            case 5 -> Material.ENCHANTED_BOOK;
-            case 6 -> Material.CHEST;
+            case 4 -> Material.DIAMOND;
+            case 5 -> Material.IRON_PICKAXE;
+            case 6 -> Material.NAME_TAG;
+            case 7 -> Material.ENCHANTED_BOOK;
+            case 8 -> Material.CHEST;
             default -> Material.GRAY_DYE;
         };
 
         Function<FilterMatchOptions, Boolean> getter = switch (slot) {
-            case 1 -> FilterMatchOptions::matchType;
-            case 2 -> FilterMatchOptions::matchDurability;
-            case 3 -> FilterMatchOptions::matchName;
-            case 5 -> FilterMatchOptions::matchNBT;
-            case 6 -> FilterMatchOptions::matchTag;
+            case 4 -> FilterMatchOptions::matchType;
+            case 5 -> FilterMatchOptions::matchDurability;
+            case 6 -> FilterMatchOptions::matchName;
+            case 7 -> FilterMatchOptions::matchNBT;
+            case 8 -> FilterMatchOptions::matchTag;
             default -> null;
         };
 
         Function<FilterMatchOptions, FilterMatchOptions> toggler = switch (slot) {
-            case 1 -> opts -> opts.withMatchType(!opts.matchType());
-            case 2 -> opts -> opts.withMatchDurability(!opts.matchDurability());
-            case 3 -> opts -> opts.withMatchName(!opts.matchName());
-            case 5 -> opts -> opts.withMatchNBT(!opts.matchNBT());
-            case 6 -> opts -> opts.withMatchTag(!opts.matchTag());
+            case 4 -> opts -> opts.withMatchType(!opts.matchType());
+            case 5 -> opts -> opts.withMatchDurability(!opts.matchDurability());
+            case 6 -> opts -> opts.withMatchName(!opts.matchName());
+            case 7 -> opts -> opts.withMatchNBT(!opts.matchNBT());
+            case 8 -> opts -> opts.withMatchTag(!opts.matchTag());
             default -> null;
         };
 

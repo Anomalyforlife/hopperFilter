@@ -8,7 +8,7 @@ on:
 jobs:
   publish:
     # TODO: Optional, make sure the task only runs on pushes to your repository and doesn't fail on forks. Uncomment the line below and put the repo owner into the quotes
-    # if: github.repository_owner == 'anomalyforlife'
+    if: github.repository_owner == 'anomalyforlife'
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Repository
@@ -26,6 +26,5 @@ jobs:
           gradle-version: 8.11.1
       - name: Publish
         env:
-          # Make sure you have added a repository secret in the repository's settings
           HANGAR_API_TOKEN: ${{ secrets.HANGAR_API_TOKEN }}
-        run: gradle build --stacktrace
+        run: gradle shadowJar publishPluginPublicationToHangar --stacktrace --info

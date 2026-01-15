@@ -87,7 +87,7 @@ public final class FilterMatchConfigGui {
         inventory.setItem(8, filler.clone());
     }
 
-    private static OptionEntry optionForSlot(int slot) {
+    private OptionEntry optionForSlot(int slot) {
         return switch (slot) {
             case 1 -> createOptionEntry(1, languageManager.getMatchMaterial(), null);
             case 2 -> createOptionEntry(2, languageManager.getMatchDurability(), null);
@@ -97,7 +97,7 @@ public final class FilterMatchConfigGui {
         };
     }
 
-    private static OptionEntry createOptionEntry(int slot, LanguageManager.OptionTexts texts, FilterMatchOptions options) {
+    private OptionEntry createOptionEntry(int slot, LanguageManager.OptionTexts texts, FilterMatchOptions options) {
         Material material = switch (slot) {
             case 1 -> Material.DIAMOND;
             case 2 -> Material.IRON_PICKAXE;

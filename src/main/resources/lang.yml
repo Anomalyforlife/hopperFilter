@@ -2,100 +2,100 @@
 # Tutti i testi del plugin possono essere modificati qui
 
 # Prefisso del plugin
-prefix: "§7[§dHopperFilter§7] §r"
+prefix: "§8[§d§lHopperFilter§8]§r "
 
 # Titolo GUI principale
 gui:
-  main-title: "§c§n§lHopper§r §d§n§lFilter§r"
+  main-title: "§5§lHopper §d§lFilter§r"
   
   # GUI di configurazione opzioni di matching per ogni item
-  config-title: "§6Filter Item Options"
+  config-title: "§6§lFilter §e§lOptions§r"
   
   # Descrizioni delle opzioni nella GUI di configurazione
   options:
     match-material:
-      name: "Match Material"
-      description: "Richiede lo stesso materiale prima di lasciare passare l'oggetto."
-      on: "§aON"
-      off: "§cOFF"
+      name: "§6Match Material"
+      description: "Requires the same material type."
+      on: "§a§l✓§r §aEnabled"
+      off: "§c§l✗§r §cDisabled"
     
     match-durability:
-      name: "Match Durability"
-      description: "Controlla che la durabilita dell'oggetto coincidano."
-      on: "§aON"
-      off: "§cOFF"
+      name: "§6Match Durability"
+      description: "Checks that item durability matches."
+      on: "§a§l✓§r §aEnabled"
+      off: "§c§l✗§r §cDisabled"
     
     match-name:
-      name: "Match Name"
-      description: "Verifica il nome personalizzato dell'oggetto."
-      on: "§aON"
-      off: "§cOFF"
+      name: "§6Match Name"
+      description: "Verifies the custom item name."
+      on: "§a§l✓§r §aEnabled"
+      off: "§c§l✗§r §cDisabled"
     
     match-nbt:
-      name: "Match NBT"
-      description: "Considera incantesimi, modelli e altri dati NBT."
-      on: "§aON"
-      off: "§cOFF"
+      name: "§6Match NBT"
+      description: "Considers enchantments, models and other NBT data."
+      on: "§a§l✓§r §aEnabled"
+      off: "§c§l✗§r §cDisabled"
 
     match-tag:
-      name: "Match Tag"
-      description: "Raggruppa item con lo stesso tag (ad es. tutte le plank)."
-      on: "§aON"
-      off: "§cOFF"
+      name: "§6Match Tag"
+      description: "Groups items with the same tag (e.g. all planks)."
+      on: "§a§l✓§r §aEnabled"
+      off: "§c§l✗§r §cDisabled"
 
   # GUI per selezionare un tag specifico
   tag-select:
-    title: "§6Select Tag"
-    back: "§7Back"
-    prev: "§ePrevious"
-    next: "§eNext"
-    disable: "§cDisable Tag Matching"
+    title: "§e§lSelect §6§lTag§r"
+    back: "§7« Back"
+    prev: "§e« Previous Page"
+    next: "§eNext Page »"
+    disable: "§c§lDisable Tag Matching"
     page: "§7Page §f{page}§7/§f{pages}"
     item-line: "§7Item: §f{item}"
-    selected-line: "§aSelected"
-    click-to-select-line: "§7Click to select"
+    selected-line: "§a§l✓ §aCurrently Selected"
+    click-to-select-line: "§e§l» §7Click to select"
   
   # Tooltip nella GUI di configurazione
-  click-to-change: "§7Clicca per cambiare."
+  click-to-change: "§e§l» §7Click to toggle"
 
 # Messaggi di feedback
 messages:
   # Messaggi di aggiunta item
-  added: "§a§lItem added to Filter!"
-  added-warning: "§a§lItem added to Filter! §c§lWARNING: §6§lIt will catch every variant of this item!"
-  already-in-filter: "§6§lItem is already in Filter!"
-  filter-full: "§c§lFilter is full!"
+  added: "§a§l✓ §aItem added to filter!"
+  added-warning: "§a§l✓ §aItem added to filter! §6⚠ Warning: §eThis will match all variants!"
+  already-in-filter: "§e§l! §eItem already in filter!"
+  filter-full: "§c§l✗ §cFilter is full!"
   
   # Messaggio di rimozione item
-  removed: "§4§lItem removed from Filter!"
+  removed: "§c§l✗ §cItem removed from filter!"
   
   # Messaggio di pulizia filtro
-  cleared: "§a§lFilter cleared!"
+  cleared: "§a§l✓ §aFilter cleared successfully!"
   
   # Messaggi di break del hopper
-  must-sneak-to-break: "§c§lYou must shift to break the Hopper Filter!"
-  must-have-break-perm: "§c§lYou must have permission to break the Hopper Filter!"
+  must-sneak-to-break: "§c§l! §cYou must sneak to break a filtered hopper!"
+  must-have-break-perm: "§c§l! §cYou don't have permission to break filtered hoppers!"
   
   # Messaggio per TNT vicino a hopper filtrato
-  too-close-to-filtered-hopper: "§c§lYou are too close to a Filtered Hopper!"
+  too-close-to-filtered-hopper: "§c§l! §cCannot place TNT near a filtered hopper!"
   
   # Messaggi per la configurazione delle opzioni
-  option-toggle-feedback: "§a{option_name} {state}"
+  option-toggle-feedback: "§e§l» §6{option_name}: {state}"
 
 # Messaggi di errore
 errors:
-  db-error: "§cDB error: {error}"
-  empty-slot: "§cLo slot selezionato è vuoto."
-  item-no-longer-present: "§cL'oggetto non è più presente."
+  db-error: "§c§l✗ §cDatabase error: §7{error}"
+  empty-slot: "§e§l! §eThe selected slot is empty."
+  item-no-longer-present: "§e§l! §eThe item is no longer present."
 
 # Messaggi di comando
 commands:
-  reload-success: "§aReloaded."
-  no-permission: "§cNo permission."
-  usage: "§cUsage: /{command} <reload|info|clear>"
-  only-players: "§cOnly players can use this."
-  look-at-hopper: "§cLook at a hopper (within 6 blocks)."
-  hopper-filtered: "§aThis hopper is filtered."
-  hopper-not-filtered: "§7This hopper has no filter."
-  cleared-via-command: "§aCleared filter."
-  unknown-subcommand: "§cUnknown subcommand."
+  reload-success: "§a§l✓ §aConfiguration reloaded successfully!"
+  no-permission: "§c§l✗ §cYou don't have permission to use this command."
+  usage: "§e§l» §6Usage: §e/{command} §7<reload|info|clear>"
+  only-players: "§c§l! §cOnly players can use this command."
+  look-at-hopper: "§e§l! §ePlease look at a hopper within 6 blocks."
+  hopper-filtered: "§a§l✓ §aThis hopper has a filter active."
+  hopper-not-filtered: "§7§l○ §7This hopper has no filter."
+  cleared-via-command: "§a§l✓ §aHopper filter cleared!"
+  unknown-subcommand: "§c§l✗ §cUnknown subcommand. §7Try: reload, info, clear"

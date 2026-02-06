@@ -41,7 +41,7 @@ The filter works as an **allowlist**: if the filter contains at least one item, 
 
 ### 3) Configure match options (per slot)
 
-- **Middle-click (mouse wheel)** a filter slot (main GUI) to open the “Filter Item Options” GUI.
+- **Left Click** a filter slot (main GUI) to open the “Filter Item Options” GUI.
 - From there you can enable/disable matching options for that specific filter item.
 
 Options:

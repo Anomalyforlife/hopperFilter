@@ -244,7 +244,7 @@ public final class HopperFilterListener implements Listener {
         if (top.getHolder() instanceof FilterGuiHolder holder) {
             event.setCancelled(true);
             try {
-                if (event.getClick() == ClickType.MIDDLE && event.getClickedInventory() != null && event.getClickedInventory().equals(top)) {
+                if (event.getClick() == ClickType.LEFT && event.getClickedInventory() != null && event.getClickedInventory().equals(top)) {
                     configGui.open(player, holder.key(), event.getSlot());
                     return;
                 }

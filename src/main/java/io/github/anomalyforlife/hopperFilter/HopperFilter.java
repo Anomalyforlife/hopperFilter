@@ -5,6 +5,8 @@ import java.sql.DriverManager;
 import java.util.Locale;
 
 import org.bukkit.Bukkit;
+import org.bukkit.command.CommandMap;
+import org.bukkit.command.defaults.BukkitCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import io.github.anomalyforlife.hopperFilter.commands.HopperFilterCommand;
@@ -66,10 +68,32 @@ public final class HopperFilter extends JavaPlugin {
                 this
         );
 
-        if (getCommand("hopperfilter") != null) {
-            getCommand("hopperfilter").setExecutor(
-                    new HopperFilterCommand(this::reloadAll, filterService, messages, languageManager)
-            );
+        // Registra il comando hopperfilter usando CommandMap (Paper-compatible)
+        registerCommand();
+    }
+
+    private void registerCommand() {
+        try {
+            final CommandMap commandMap = getServer().getCommandMap();
+            final HopperFilterCommand cmdExecutor = new HopperFilterCommand(this::reloadAll, filterService, messages, languageManager);
+            
+            BukkitCommand hopperFilterCmd = new BukkitCommand("hopperfilter") {
+                {
+                    setDescription("HopperFilter admin commands");
+                    setUsage("/hopperfilter <reload|info|clear>");
+                    setAliases(java.util.List.of("hf"));
+                }
+                
+                @Override
+                public boolean execute(org.bukkit.command.CommandSender sender, String label, String[] args) {
+                    return cmdExecutor.onCommand(sender, this, label, args);
+                }
+            };
+            
+            commandMap.register("hopperfilter", this.getName().toLowerCase(), hopperFilterCmd);
+        } catch (Exception e) {
+            getLogger().severe("Failed to register command: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 

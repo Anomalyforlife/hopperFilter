@@ -154,3 +154,13 @@ Output:
 ---
 
 Website/author: `italiarevenge.com` / Anomalyforlife
+
+---
+
+## Special Thanks
+
+Special thanks to the users:
+
+<a href="https://github.com/bmlzootown" target="_blank"><img src="https://github.com/bmlzootown.png" width="24" height="24" style="vertical-align:middle; border-radius:50%;"/> <strong>bmlzootown</strong></a> <a href="https://github.com/Anomalyforlife/hopperFilter/issues/1" target="_blank">(Issue&nbsp;#1)</a>
+<br>
+<a href="https://github.com/DJRikyu" target="_blank"><img src="https://github.com/DJRikyu.png" width="24" height="24" style="vertical-align:middle; border-radius:50%;"/> <strong>DJRikyu</strong></a> Collaboration

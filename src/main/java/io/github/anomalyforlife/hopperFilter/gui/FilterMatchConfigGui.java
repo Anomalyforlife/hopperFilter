@@ -40,7 +40,6 @@ public final class FilterMatchConfigGui {
         }
         ItemStack item = filter[slot];
         if (item == null || item.getType().isAir()) {
-            messages.send(player, languageManager.getErrorEmptySlot());
             return;
         }
         Inventory inventory = Bukkit.createInventory(new FilterMatchConfigGuiHolder(key, slot), 9, LEGACY.deserialize(languageManager.getConfigGuiTitle()));

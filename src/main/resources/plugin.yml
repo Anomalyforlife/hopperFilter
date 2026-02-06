@@ -21,13 +21,13 @@ commands:
 permissions:
   hopperfilter.opengui:
     description: Allows opening the hopper filter GUI
-    default: false
+    default: op
   hopperfilter.use:
     description: Allows using the hopper filter GUI (add/remove items)
-    default: false
+    default: op
   hopperfilter.break:
     description: Allows breaking filtered hoppers (must sneak)
-    default: false
+    default: op
   hopperfilter.admin.reload:
     description: Allows reloading HopperFilter config
     default: op

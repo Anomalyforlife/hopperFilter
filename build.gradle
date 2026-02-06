@@ -39,7 +39,7 @@ dependencies {
 
 // IMPORTANT: shadowJar deve avere un classifier diverso dal jar normale (no overwrite)
 tasks.named("shadowJar", com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar).configure {
-    archiveClassifier.set("all") // => HopperFilter-1.3.1-all.jar
+    archiveClassifier.set("all")
 }
 
 tasks.named("build").configure {

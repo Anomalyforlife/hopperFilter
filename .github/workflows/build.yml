@@ -173,7 +173,7 @@ jobs:
           tag_name: ${{ steps.create_tag.outputs.tag }}
           body: ${{ steps.changelog.outputs.body }}
           files: |
-            build/libs/*.jar
+            build/libs/*[!l][!l].jar
           fail_on_unmatched_files: true
 
       - name: Create/Update GitHub Release (tag push)
@@ -183,5 +183,5 @@ jobs:
           tag_name: ${{ github.ref_name }}
           body: ${{ steps.changelog.outputs.body }}
           files: |
-            build/libs/*.jar
+            build/libs/*[!l][!l].jar
           fail_on_unmatched_files: true

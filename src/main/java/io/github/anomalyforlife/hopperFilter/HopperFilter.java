@@ -38,6 +38,9 @@ public final class HopperFilter extends JavaPlugin {
     public void onEnable() {
         saveDefaultConfig();
 
+        // Log plugin version on enable
+        getLogger().info("Enabling HopperFilter v" + getPluginMeta().getVersion());
+
         try {
             setupAndConnect();
         } catch (Exception e) {

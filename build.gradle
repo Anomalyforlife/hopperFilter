@@ -72,10 +72,10 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 processResources {
-    def props = [version: version]
+    def props = [version: providers.gradleProperty('pluginVersion').get()]
     inputs.properties props
     filteringCharset 'UTF-8'
-    filesMatching('plugin.yml') {
+    filesMatching(['plugin.yml', 'paper-plugin.yml']) {
         expand props
     }
 }

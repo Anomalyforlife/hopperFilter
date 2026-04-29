@@ -92,10 +92,10 @@ errors:
 commands:
   reload-success: "§a§l✓ §aConfiguration reloaded successfully!"
   no-permission: "§c§l✗ §cYou don't have permission to use this command."
-  usage: "§e§l» §6Usage: §e/{command} §7<reload|info|clear>"
+  usage: "§e§l» §6Usage: §e/{command} §7<reload|info|clear|give>"
   only-players: "§c§l! §cOnly players can use this command."
   look-at-hopper: "§e§l! §ePlease look at a hopper within 6 blocks."
   hopper-filtered: "§a§l✓ §aThis hopper has a filter active."
   hopper-not-filtered: "§7§l○ §7This hopper has no filter."
   cleared-via-command: "§a§l✓ §aHopper filter cleared!"
-  unknown-subcommand: "§c§l✗ §cUnknown subcommand. §7Try: reload, info, clear"
+  unknown-subcommand: "§c§l✗ §cUnknown subcommand. §7Try: reload, info, clear, give"

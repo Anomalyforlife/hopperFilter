@@ -3,6 +3,7 @@ package io.github.anomalyforlife.hopperFilter.listeners;
 import java.util.List;
 import java.util.logging.Logger;
 
+import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.Hopper;
@@ -20,6 +21,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
+import io.github.anomalyforlife.hopperFilter.FilteredHopperItem;
 import io.github.anomalyforlife.hopperFilter.gui.FilterGui;
 import io.github.anomalyforlife.hopperFilter.gui.FilterGuiHolder;
 import io.github.anomalyforlife.hopperFilter.gui.FilterMatchConfigGui;
@@ -181,6 +183,11 @@ public final class HopperFilterListener implements Listener {
         try {
             HopperKey key = HopperKey.fromLocation(hopperHolder.getLocation());
 
+            // Special-hopper mode: ignore non-special hoppers entirely.
+            if (!filterService.isFilteredHopper(key)) {
+                return;
+            }
+
             ItemStack[] filter = filterService.getOrLoadView(key);
             List<CompiledEntry> compiled = compileFilter(filter);
             if (!isActive(compiled)) {
@@ -225,7 +232,7 @@ public final class HopperFilterListener implements Listener {
             destination.addItem(one);
         } catch (Exception e) {
             // FIX #2: logga invece di ingoiare silenziosamente
-            LOGGER.warning("[HopperFilter] Error in InventoryMoveItemEvent: " + e.getMessage());
+            LOGGER.log(java.util.logging.Level.WARNING, "[HopperFilter] Error in InventoryMoveItemEvent", e);
         }
     }
 
@@ -254,11 +261,46 @@ public final class HopperFilterListener implements Listener {
             return;
         }
 
-        event.setCancelled(true);
         try {
-            gui.open(player, HopperKey.fromLocation(block.getLocation()));
+            HopperKey key = HopperKey.fromLocation(block.getLocation());
+
+            // Modalità hopper speciali: se non è un filtered hopper, lascia aprire la GUI vanilla.
+            if (filterService.isSpecialHopperRequired() && !filterService.isFilteredHopper(key)) {
+                return;
+            }
+
+            event.setCancelled(true);
+            gui.open(player, key);
         } catch (Exception e) {
             messages.send(player, "§cDB error: " + e.getMessage());
+            LOGGER.log(java.util.logging.Level.WARNING, "[HopperFilter] Error opening GUI", e);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onPlaceHopper(BlockPlaceEvent event) {
+        if (event.getBlockPlaced().getType() != Material.HOPPER) {
+            return;
+        }
+
+        // Spec: if (!requireSpecialHopper) return;
+        if (!filterService.isSpecialHopperRequired()) {
+            return;
+        }
+
+        ItemStack placedItem = event.getItemInHand();
+        if (!FilteredHopperItem.isSpecial(placedItem)) {
+            return;
+        }
+
+        try {
+            HopperKey key = HopperKey.fromLocation(event.getBlockPlaced().getLocation());
+            filterService.registerFilteredHopper(key);
+        } catch (Exception e) {
+            // If we can't persist it, cancel placement to avoid an untracked special hopper.
+            event.setCancelled(true);
+            messages.send(event.getPlayer(), "§cDB error: " + e.getMessage());
+            LOGGER.log(java.util.logging.Level.SEVERE, "[HopperFilter] Failed to register filtered hopper location", e);
         }
     }
 
@@ -335,27 +377,53 @@ public final class HopperFilterListener implements Listener {
         Player player = event.getPlayer();
         try {
             HopperKey key = HopperKey.fromLocation(block.getLocation());
-            if (!filterService.hasAny(key)) {
+
+            boolean specialMode = filterService.isSpecialHopperRequired();
+            boolean isSpecialFilteredHopper = specialMode && filterService.isFilteredHopper(key);
+
+            // Special-hopper mode: ignore non-special hoppers entirely.
+            if (specialMode && !isSpecialFilteredHopper) {
                 return;
             }
 
-            // FIX #1: "hopperfilter.break" — coerente con plugin.yml (era "hopperfilter.admin.break")
-            if (!player.hasPermission("hopperfilter.break")) {
-                messages.actionBar(player, msgMustHaveBreakPerm);
-                event.setCancelled(true);
-                return;
-            }
-            if (!player.isSneaking()) {
-                messages.actionBar(player, msgMustSneakToBreak);
-                event.setCancelled(true);
-                return;
+            boolean hasAny = filterService.hasAny(key);
+
+            // Keep the existing behavior: require sneak+perm only if the hopper has an active filter.
+            if (hasAny) {
+                // FIX #1: "hopperfilter.break" — coerente con plugin.yml (era "hopperfilter.admin.break")
+                if (!player.hasPermission("hopperfilter.break")) {
+                    messages.actionBar(player, msgMustHaveBreakPerm);
+                    event.setCancelled(true);
+                    return;
+                }
+                if (!player.isSneaking()) {
+                    messages.actionBar(player, msgMustSneakToBreak);
+                    event.setCancelled(true);
+                    return;
+                }
             }
 
-            filterService.clearAndCache(key);
-            messages.actionBar(player, msgCleared);
+            // If this is a special filtered hopper, preserve its identity on drop.
+            if (isSpecialFilteredHopper) {
+                event.setDropItems(false);
+                if (player.getGameMode() != GameMode.CREATIVE) {
+                    block.getWorld().dropItemNaturally(block.getLocation().add(0.5, 0.5, 0.5), filterService.createSpecialHopperItem(1));
+                }
+            }
+
+            if (hasAny) {
+                filterService.clearAndCache(key);
+                messages.actionBar(player, msgCleared);
+            }
+
+            // Special-hopper mode: remove from the location table only when breaking is allowed.
+            if (specialMode) {
+                filterService.unregisterFilteredHopper(key);
+            }
         } catch (Exception e) {
             messages.send(player, "§cDB error: " + e.getMessage());
             event.setCancelled(true);
+            LOGGER.log(java.util.logging.Level.WARNING, "[HopperFilter] Error in BlockBreakEvent", e);
         }
     }
 
@@ -371,16 +439,20 @@ public final class HopperFilterListener implements Listener {
                 }
                 try {
                     HopperKey key = HopperKey.fromLocation(block.getLocation());
+
+                    if (filterService.isSpecialHopperRequired() && !filterService.isFilteredHopper(key)) {
+                        return false;
+                    }
                     return filterService.hasAny(key);
                 } catch (Exception e) {
                     // FIX #2: logga l'errore; proteggi il blocco per sicurezza
-                    LOGGER.warning("[HopperFilter] Error checking hopper during explosion: " + e.getMessage());
+                    LOGGER.log(java.util.logging.Level.WARNING, "[HopperFilter] Error checking hopper during explosion", e);
                     return true;
                 }
             });
         } catch (Exception e) {
             // FIX #2: logga invece di ingoiare silenziosamente
-            LOGGER.warning("[HopperFilter] Error in EntityExplodeEvent: " + e.getMessage());
+            LOGGER.log(java.util.logging.Level.WARNING, "[HopperFilter] Error in EntityExplodeEvent", e);
         }
     }
 
@@ -403,6 +475,9 @@ public final class HopperFilterListener implements Listener {
                             continue;
                         }
                         HopperKey key = HopperKey.fromLocation(b.getLocation());
+                        if (filterService.isSpecialHopperRequired() && !filterService.isFilteredHopper(key)) {
+                            continue;
+                        }
                         if (filterService.hasAny(key)) {
                             event.setCancelled(true);
                             messages.actionBar(player, msgTooClose);
@@ -413,7 +488,7 @@ public final class HopperFilterListener implements Listener {
             }
         } catch (Exception e) {
             // FIX #2: logga invece di ingoiare silenziosamente
-            LOGGER.warning("[HopperFilter] Error in BlockPlaceEvent (TNT check): " + e.getMessage());
+            LOGGER.log(java.util.logging.Level.WARNING, "[HopperFilter] Error in BlockPlaceEvent (TNT check)", e);
         }
     }
 }

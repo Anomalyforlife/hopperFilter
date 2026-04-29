@@ -1,29 +1,96 @@
 package io.github.anomalyforlife.hopperFilter.service;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.inventory.ItemStack;
 
+import io.github.anomalyforlife.hopperFilter.FilteredHopperItem;
 import io.github.anomalyforlife.hopperFilter.model.HopperKey;
 import io.github.anomalyforlife.hopperFilter.storage.HopperFilterStorage;
 
 public final class FilterService {
     private final HopperFilterStorage storage;
     private final int size;
+
+    private final String specialHopperName;
+    private final List<String> specialHopperLore;
+
+    private final boolean specialHopperRequired;
+    private final ConcurrentHashMap<HopperKey, Boolean> filteredHopperCache;
+
     private final Map<HopperKey, ItemStack[]> cache = new ConcurrentHashMap<>();
 
-    public FilterService(HopperFilterStorage storage, int size) {
-        this.storage = storage;
+    public FilterService(HopperFilterStorage storage,
+                         int size,
+                         boolean specialHopperRequired,
+                         String specialHopperName,
+                         List<String> specialHopperLore) throws Exception {
+        this.storage = Objects.requireNonNull(storage, "storage");
         if (size <= 0) {
             throw new IllegalArgumentException("size must be > 0");
         }
         this.size = size;
+
+        this.specialHopperName = specialHopperName;
+        this.specialHopperLore = specialHopperLore == null ? java.util.List.of() : java.util.List.copyOf(specialHopperLore);
+
+        this.specialHopperRequired = specialHopperRequired;
+        if (specialHopperRequired) {
+            storage.initFilteredHopperLocations();
+            Set<HopperKey> keys = storage.loadFilteredHopperLocations();
+            this.filteredHopperCache = new ConcurrentHashMap<>(Math.max(16, keys.size() * 2));
+            for (HopperKey key : keys) {
+                if (key == null) continue;
+                this.filteredHopperCache.put(key, Boolean.TRUE);
+            }
+        } else {
+            this.filteredHopperCache = null;
+        }
     }
 
     public int size() {
         return size;
+    }
+
+    public ItemStack createSpecialHopperItem(int amount) {
+        return FilteredHopperItem.create(amount, specialHopperName, specialHopperLore);
+    }
+
+    public boolean isSpecialHopperRequired() {
+        return specialHopperRequired;
+    }
+
+    public boolean isFilteredHopper(HopperKey key) {
+        if (!specialHopperRequired) {
+            return true;
+        }
+        if (key == null) {
+            return false;
+        }
+        return filteredHopperCache.containsKey(key);
+    }
+
+    public void registerFilteredHopper(HopperKey key) throws Exception {
+        if (!specialHopperRequired) {
+            return;
+        }
+        Objects.requireNonNull(key, "key");
+        storage.addFilteredHopperLocation(key);
+        filteredHopperCache.put(key, Boolean.TRUE);
+    }
+
+    public void unregisterFilteredHopper(HopperKey key) throws Exception {
+        if (!specialHopperRequired) {
+            return;
+        }
+        Objects.requireNonNull(key, "key");
+        storage.removeFilteredHopperLocation(key);
+        filteredHopperCache.remove(key);
     }
 
     public ItemStack[] getOrLoad(HopperKey key) throws Exception {

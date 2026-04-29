@@ -29,3 +29,14 @@ filter:
 
 tnt:
   blockedRadius: 5
+
+filtered-hopper:
+  enabled: true
+  require-special-hopper: true
+
+  name: "§6Filtered Hopper"
+  lore:
+    - "§7This hopper can filter items."
+
+  give-message-sender: "§aGiven {amount}x Filtered Hopper to {player}."
+  give-message-receiver: "§aYou received {amount}x Filtered Hopper."

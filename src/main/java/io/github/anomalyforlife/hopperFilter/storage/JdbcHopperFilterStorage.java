@@ -10,8 +10,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
 import java.util.logging.Level;
 
 import org.bukkit.inventory.ItemStack;
@@ -24,6 +28,7 @@ import io.github.anomalyforlife.hopperFilter.model.HopperKey;
 
 public final class JdbcHopperFilterStorage implements HopperFilterStorage {
     private static final String TABLE_NAME = "hopper_filter_items";
+    private static final String FILTERED_HOPPER_LOCATIONS_TABLE = "filtered_hopper_locations";
     private static final Type ITEM_MAP_TYPE = new TypeToken<Map<String, Object>>() {
     }.getType();
 
@@ -54,6 +59,82 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
                             "PRIMARY KEY(world_uuid, x, y, z, slot)" +
                             ")"
             )) {
+                ps.executeUpdate();
+            }
+        }
+    }
+
+    @Override
+    public void initFilteredHopperLocations() throws SQLException {
+        try (Connection connection = connectionProvider.getConnection()) {
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "CREATE TABLE IF NOT EXISTS " + FILTERED_HOPPER_LOCATIONS_TABLE + " (" +
+                            "world_uuid TEXT NOT NULL," +
+                            "x INTEGER NOT NULL," +
+                            "y INTEGER NOT NULL," +
+                            "z INTEGER NOT NULL," +
+                            "PRIMARY KEY (world_uuid, x, y, z)" +
+                            ")"
+            )) {
+                ps.executeUpdate();
+            }
+        }
+    }
+
+    @Override
+    public Set<HopperKey> loadFilteredHopperLocations() throws SQLException {
+        Set<HopperKey> out = new HashSet<>();
+        try (Connection connection = connectionProvider.getConnection()) {
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "SELECT world_uuid, x, y, z FROM " + FILTERED_HOPPER_LOCATIONS_TABLE
+            )) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        String world = rs.getString(1);
+                        int x = rs.getInt(2);
+                        int y = rs.getInt(3);
+                        int z = rs.getInt(4);
+
+                        if (world == null || world.isBlank()) {
+                            continue;
+                        }
+
+                        try {
+                            UUID uuid = UUID.fromString(world);
+                            out.add(new HopperKey(uuid, x, y, z));
+                        } catch (IllegalArgumentException ignored) {
+                        }
+                    }
+                }
+            }
+        }
+        return out;
+    }
+
+    @Override
+    public void addFilteredHopperLocation(HopperKey key) throws SQLException {
+        try (Connection connection = connectionProvider.getConnection()) {
+            String sql = filteredHopperInsertIgnoreSql(connection);
+            try (PreparedStatement ps = connection.prepareStatement(sql)) {
+                ps.setString(1, key.worldUuid().toString());
+                ps.setInt(2, key.x());
+                ps.setInt(3, key.y());
+                ps.setInt(4, key.z());
+                ps.executeUpdate();
+            }
+        }
+    }
+
+    @Override
+    public void removeFilteredHopperLocation(HopperKey key) throws SQLException {
+        try (Connection connection = connectionProvider.getConnection()) {
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "DELETE FROM " + FILTERED_HOPPER_LOCATIONS_TABLE + " WHERE world_uuid=? AND x=? AND y=? AND z=?"
+            )) {
+                ps.setString(1, key.worldUuid().toString());
+                ps.setInt(2, key.x());
+                ps.setInt(3, key.y());
+                ps.setInt(4, key.z());
                 ps.executeUpdate();
             }
         }
@@ -160,6 +241,26 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
 
     @Override
     public void close() {
+    }
+
+    private static String filteredHopperInsertIgnoreSql(Connection connection) throws SQLException {
+        String product = "";
+        try {
+            product = connection.getMetaData().getDatabaseProductName();
+        } catch (SQLException ignored) {
+        }
+        String p = product == null ? "" : product.toLowerCase(Locale.ROOT);
+
+        // SQLite supports "INSERT OR IGNORE"; MySQL supports "INSERT IGNORE".
+        if (p.contains("sqlite")) {
+            return "INSERT OR IGNORE INTO " + FILTERED_HOPPER_LOCATIONS_TABLE + "(world_uuid,x,y,z) VALUES (?,?,?,?)";
+        }
+        if (p.contains("mysql") || p.contains("mariadb")) {
+            return "INSERT IGNORE INTO " + FILTERED_HOPPER_LOCATIONS_TABLE + "(world_uuid,x,y,z) VALUES (?,?,?,?)";
+        }
+
+        // Fallback: may throw on duplicates.
+        return "INSERT INTO " + FILTERED_HOPPER_LOCATIONS_TABLE + "(world_uuid,x,y,z) VALUES (?,?,?,?)";
     }
 
     private String serializeItem(ItemStack itemStack) {

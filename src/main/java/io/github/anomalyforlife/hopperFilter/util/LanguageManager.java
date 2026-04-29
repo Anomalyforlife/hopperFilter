@@ -84,7 +84,7 @@ public final class LanguageManager {
         
         this.cmdReloadSuccess = config.getString("commands.reload-success", "§aReloaded.");
         this.cmdNoPermission = config.getString("commands.no-permission", "§cNo permission.");
-        this.cmdUsage = config.getString("commands.usage", "§cUsage: /{command} <reload|info|clear>");
+        this.cmdUsage = config.getString("commands.usage", "§cUsage: /{command} <reload|info|clear|give>");
         this.cmdOnlyPlayers = config.getString("commands.only-players", "§cOnly players can use this.");
         this.cmdLookAtHopper = config.getString("commands.look-at-hopper", "§cLook at a hopper (within 6 blocks).");
         this.cmdHopperFiltered = config.getString("commands.hopper-filtered", "§aThis hopper is filtered.");

@@ -30,11 +30,12 @@ repositories {
 dependencies {
     compileOnly("io.papermc.paper:paper-api:${paperApiVersion}")
 
-    // Mantieni queste dipendenze SOLO per compilare (Paper le scaricherà via paper-plugin.yml)
-    compileOnly "com.zaxxer:HikariCP:5.1.0"
-    compileOnly "org.xerial:sqlite-jdbc:3.45.3.0"
-    compileOnly "com.mysql:mysql-connector-j:8.3.0"
-    compileOnly "com.google.code.gson:gson:2.10.1"
+    // Runtime deps (needed by the plugin). The thin jar stays thin; the "-all" shadowJar includes them.
+    // Paper can also download them via (paper-)plugin.yml libraries.
+    implementation "com.zaxxer:HikariCP:5.1.0"
+    implementation "org.xerial:sqlite-jdbc:3.45.3.0"
+    implementation "com.mysql:mysql-connector-j:8.3.0"
+    implementation "com.google.code.gson:gson:2.10.1"
 }
 
 // IMPORTANT: shadowJar deve avere un classifier diverso dal jar normale (no overwrite)

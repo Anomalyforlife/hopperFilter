@@ -38,6 +38,8 @@ public final class HopperFilter extends JavaPlugin {
     private Messages messages;
     private LanguageManager languageManager;
 
+    private HopperFilterCommand commandExecutor;
+
     // FIX #4: il listener viene creato una volta sola e i suoi campi aggiornati al reload
     private HopperFilterListener listener;
     private boolean listenerRegistered = false;
@@ -70,18 +72,40 @@ public final class HopperFilter extends JavaPlugin {
     private void registerCommand() {
         try {
             final CommandMap commandMap = getServer().getCommandMap();
-            final HopperFilterCommand cmdExecutor = new HopperFilterCommand(this::reloadAll, filterService, messages, languageManager);
+
+            if (commandExecutor == null) {
+                commandExecutor = new HopperFilterCommand(
+                        this::reloadAll,
+                        filterService,
+                        messages,
+                        languageManager,
+                        getConfig().getString("filtered-hopper.name", "§6Filtered Hopper"),
+                        getConfig().getStringList("filtered-hopper.lore"),
+                        getConfig().getString("filtered-hopper.give-message-sender", "§aGiven {amount}x Filtered Hopper to {player}."),
+                        getConfig().getString("filtered-hopper.give-message-receiver", "§aYou received {amount}x Filtered Hopper.")
+                );
+            } else {
+                commandExecutor.update(
+                        filterService,
+                        messages,
+                        languageManager,
+                        getConfig().getString("filtered-hopper.name", "§6Filtered Hopper"),
+                        getConfig().getStringList("filtered-hopper.lore"),
+                        getConfig().getString("filtered-hopper.give-message-sender", "§aGiven {amount}x Filtered Hopper to {player}."),
+                        getConfig().getString("filtered-hopper.give-message-receiver", "§aYou received {amount}x Filtered Hopper.")
+                );
+            }
 
             BukkitCommand hopperFilterCmd = new BukkitCommand("hopperfilter") {
                 {
                     setDescription("HopperFilter admin commands");
-                    setUsage("/hopperfilter <reload|info|clear>");
+                    setUsage("/hopperfilter <reload|info|clear|give>");
                     setAliases(java.util.List.of("hf"));
                 }
 
                 @Override
                 public boolean execute(org.bukkit.command.CommandSender sender, String label, String[] args) {
-                    return cmdExecutor.onCommand(sender, this, label, args);
+                    return commandExecutor.onCommand(sender, this, label, args);
                 }
             };
 
@@ -113,7 +137,17 @@ public final class HopperFilter extends JavaPlugin {
             getLogger().warning("Config filter.size=" + requestedSize + " is invalid; using " + size + " instead.");
         }
 
-        this.filterService = new FilterService(storage, size);
+        boolean filteredHopperEnabled = getConfig().getBoolean("filtered-hopper.enabled", true);
+        boolean requireSpecialHopper = getConfig().getBoolean("filtered-hopper.require-special-hopper", true);
+        boolean specialMode = filteredHopperEnabled && requireSpecialHopper;
+
+        this.filterService = new FilterService(
+            storage,
+            size,
+            specialMode,
+            getConfig().getString("filtered-hopper.name", "§6Filtered Hopper"),
+            getConfig().getStringList("filtered-hopper.lore")
+        );
 
         Component title = LEGACY.deserialize(languageManager.getMainGuiTitle());
         this.gui = new FilterGui(
@@ -155,6 +189,19 @@ public final class HopperFilter extends JavaPlugin {
                     languageManager.getMsgMustSneakToBreak(),
                     languageManager.getMsgMustHaveBreakPerm(),
                     languageManager.getMsgTooCloseToFilteredHopper()
+            );
+        }
+
+        // Keep command behavior in sync with reloads.
+        if (commandExecutor != null) {
+            commandExecutor.update(
+                    filterService,
+                    messages,
+                    languageManager,
+                    getConfig().getString("filtered-hopper.name", "§6Filtered Hopper"),
+                    getConfig().getStringList("filtered-hopper.lore"),
+                    getConfig().getString("filtered-hopper.give-message-sender", "§aGiven {amount}x Filtered Hopper to {player}."),
+                    getConfig().getString("filtered-hopper.give-message-receiver", "§aYou received {amount}x Filtered Hopper.")
             );
         }
     }

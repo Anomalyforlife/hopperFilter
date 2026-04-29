@@ -5,6 +5,26 @@ Paper/Spigot plugin that adds a **hopper filter** (allowlist): when a hopper is 
 - **Minecraft/Paper API**: `1.21.x` (in `plugin.yml` `api-version: 1.21`)
 - **Java**: `21` (see `build.gradle`)
 
+## Filtered Hopper modes
+
+HopperFilter supports two operational modes (configurable in `config.yml`):
+
+### Mode A — Special hoppers (recommended)
+
+When `filtered-hopper.require-special-hopper: true`:
+
+- Only **special hoppers** (given via `/hf give`) can be configured and will apply item filtering.
+- Normal hoppers behave vanilla (no GUI, no filtering).
+- Special hopper locations are persisted in the DB table `filtered_hopper_locations` and cached in memory.
+
+### Mode B — Global mode
+
+When `filtered-hopper.require-special-hopper: false`:
+
+- **All** hoppers are filterable.
+- The special hopper location table is **not used** and there is **no cache/DB overhead** for the “special hopper” feature.
+- `/hf give` is disabled.
+
 ## Features
 
 - GUI to configure each hopper’s filter.
@@ -20,6 +40,12 @@ Paper/Spigot plugin that adds a **hopper filter** (allowlist): when a hopper is 
 
 ## How to use (in-game)
 
+If you are in **Special hopper mode**, you must place a special hopper first:
+
+1. `/hf give <player> [amount]`
+2. Place the received hopper.
+3. Configure it as usual (SHIFT + right-click).
+
 ### 1) Open the main GUI
 
 1. Make sure your main hand is empty.
@@ -30,6 +56,9 @@ Required permission:
 - `hopperfilter.opengui`
 
 Note: to interact with the GUI (add/remove/configure items) you also need `hopperfilter.use`.
+
+Special hopper mode note:
+- If the clicked hopper is **not** a special hopper, the plugin will not open the GUI (vanilla behavior).
 
 ### 2) Add / remove items from the filter
 
@@ -63,33 +92,36 @@ Tag matching is applied only when a **tag is selected**.
 ## Commands
 
 Main command:
-- `/hopperfilter <reload|info|clear>`
+- `/hopperfilter <reload|info|clear|give>`
 - Alias: `/hf`
 
 Subcommands:
 - `reload`: reloads config (and lang).
 - `info`: look at a hopper (within 6 blocks) and tells you whether it’s filtered.
 - `clear`: look at a hopper (within 6 blocks) and clears its filter.
+- `give`: gives a **special Filtered Hopper** item.
+  - Usage: `/hf give <player> [amount]` (default 1, max 64)
+  - Permission: `hopperfilter.admin.give`
+  - Disabled in global mode (`filtered-hopper.require-special-hopper: false`)
 
 ## Permissions
 
-Defined in `plugin.yml`:
+Defined in `plugin.yml` / `paper-plugin.yml`:
 
 | Permission | What it does | Default |
 |---|---|---|
-| `hopperfilter.opengui` | Allows opening the filter GUI | false |
-| `hopperfilter.use` | Allows using the GUI (add/remove/config) | false |
-| `hopperfilter.break` | Allows breaking filtered hoppers (must sneak) | false |
+| `hopperfilter.opengui` | Allows opening the filter GUI | op |
+| `hopperfilter.use` | Allows using the GUI (add/remove/config) | op |
+| `hopperfilter.break` | Allows breaking **actively filtered** hoppers (must sneak) | op |
 | `hopperfilter.admin.reload` | Allows `/hopperfilter reload` | op |
 | `hopperfilter.admin.info` | Allows `/hopperfilter info` | op |
 | `hopperfilter.admin.clear` | Allows `/hopperfilter clear` | op |
+| `hopperfilter.admin.give` | Allows `/hopperfilter give` | op |
 
-### Important note (break permission)
+### Note (breaking special filtered hoppers)
 
-In the current code, breaking filtered hoppers is checked against `hopperfilter.admin.break` (see the listener). In `plugin.yml`, the declared permission is `hopperfilter.break`.
-
-If you want to break filtered hoppers **without changing code**, also grant:
-- `hopperfilter.admin.break`
+- The sneak+permission check is applied only if the hopper has an **active filter**.
+- In special hopper mode, breaking a special hopper drops a special hopper item again (keeps name/lore/PDC), so you can reuse it.
 
 ## Configuration
 
@@ -115,6 +147,22 @@ Files are created under `plugins/HopperFilter/`:
 | `storage.pool.connectionTimeoutMillis` | Connection timeout | `10000` |
 | `filter.size` | Filter GUI size (multiple of 9, max 54) | `54` |
 | `tnt.blockedRadius` | TNT placement block radius near filtered hoppers | `5` |
+| `filtered-hopper.enabled` | Enables the filtered-hopper feature | `true` |
+| `filtered-hopper.require-special-hopper` | If `true`, only special hoppers work; if `false`, all hoppers work | `true` |
+| `filtered-hopper.name` | Display name of the special hopper item | `§6Filtered Hopper` |
+| `filtered-hopper.lore` | Lore lines of the special hopper item | `§7This hopper can filter items.` |
+| `filtered-hopper.give-message-sender` | Message shown to the command sender | `§aGiven {amount}x Filtered Hopper to {player}.` |
+| `filtered-hopper.give-message-receiver` | Message shown to the receiver | `§aYou received {amount}x Filtered Hopper.` |
+
+## Storage
+
+The plugin uses 2 tables:
+
+- `hopper_filter_items`: stores the filter contents per hopper location.
+- `filtered_hopper_locations`: stores **special hopper locations** (only when `filtered-hopper.require-special-hopper: true`).
+
+Global mode guarantee:
+- When `filtered-hopper.require-special-hopper: false`, the plugin does **not** query or maintain `filtered_hopper_locations`.
 
 ### lang.yml
 
@@ -126,6 +174,10 @@ Contains all plugin texts (GUI titles, tooltips, messages, commands). You can cu
 2. Put the jar into the server `plugins/` folder.
 3. Start the server (or run `/hopperfilter reload`).
 4. Configure permissions and (optionally) the database.
+
+Tip:
+- You can use the normal “thin” jar (Paper will download runtime libraries declared in `plugin.yml` / `paper-plugin.yml`).
+- Or use the `*-all.jar` shadow jar (contains runtime deps).
 
 ## Build & Dev (for developers)
 
@@ -150,6 +202,7 @@ Output:
 - **The filter doesn’t seem to persist**: make sure the server uses a persistent `plugins/HopperFilter/` folder and that the user has write permissions.
 - **Can’t open the GUI**: you need `hopperfilter.opengui`, empty main hand, and sneak.
 - **Can open but can’t click**: you need `hopperfilter.use`.
+- **Special hopper mode: hopper “stops working” after breaking**: make sure you are using the updated jar; special hoppers should drop as special items (with lore/PDC) when broken.
 
 ---
 

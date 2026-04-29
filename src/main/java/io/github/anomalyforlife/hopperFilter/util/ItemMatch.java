@@ -26,67 +26,43 @@ public final class ItemMatch {
     private ItemMatch() {
     }
 
-    // FIX #7: rimossa la logica isWildcard() basata sul nome dell'item.
-    // Era un residuo della versione Skript originale e causava comportamenti
-    // inaspettati se un giocatore nominava un item con parole come "enchanted"
-    // o "ignore". Il sistema PDC/GUI gestisce già tutto correttamente.
-
     public static boolean matches(ItemStack movingItem, ItemStack filterItem, FilterMatchOptions options) {
-        if (movingItem == null || filterItem == null) {
-            return false;
-        }
-        if (options == null) {
-            options = FilterMatchOptions.defaults();
-        }
+        if (movingItem == null || filterItem == null) return false;
+        if (options == null) options = FilterMatchOptions.defaults();
 
         boolean sameType = movingItem.getType() == filterItem.getType();
         if (options.matchTag()) {
             String selectedTag = options.matchTagName();
             if (selectedTag == null || selectedTag.isBlank()) {
-                if (!sameType) {
-                    return false;
-                }
+                if (!sameType) return false;
             } else {
-                if (!sameType && !bothInTag(selectedTag, filterItem.getType(), movingItem.getType())) {
-                    return false;
-                }
+                if (!sameType && !bothInTag(selectedTag, filterItem.getType(), movingItem.getType())) return false;
             }
         } else if (options.matchType() && !sameType) {
             return false;
         }
-        if (options.matchDurability() && !durabilityEquals(movingItem, filterItem)) {
-            return false;
-        }
-        if (options.matchName() && !namesEqual(movingItem, filterItem)) {
-            return false;
-        }
-        if (options.matchNBT() && !nbtEquals(movingItem, filterItem)) {
-            return false;
-        }
+        if (options.matchDurability() && !durabilityEquals(movingItem, filterItem)) return false;
+        if (options.matchName() && !namesEqual(movingItem, filterItem)) return false;
+        if (options.matchNBT() && !nbtEquals(movingItem, filterItem)) return false;
         return true;
     }
 
     public static List<String> materialTagNames(Material material) {
-        if (material == null) {
-            return List.of();
-        }
+        if (material == null) return List.of();
 
         List<String> names = new ArrayList<>();
         for (Field field : Tag.class.getFields()) {
-            if (!java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
-                continue;
-            }
+            if (!java.lang.reflect.Modifier.isStatic(field.getModifiers())) continue;
             Object value;
             try {
                 value = field.get(null);
             } catch (IllegalAccessException e) {
                 continue;
             }
-            if (!(value instanceof Tag rawTag)) {
-                continue;
-            }
+            if (!(value instanceof Tag<?>)) continue;
             try {
-                Tag materialTag = (Tag) rawTag;
+                @SuppressWarnings("unchecked")
+                Tag<Material> materialTag = (Tag<Material>) value;
                 if (materialTag.isTagged(material)) {
                     names.add(field.getName());
                 }
@@ -99,34 +75,27 @@ public final class ItemMatch {
     }
 
     private static boolean bothInTag(String tagFieldName, Material a, Material b) {
-        Tag tag = getMaterialTagByFieldName(tagFieldName);
-        if (tag == null) {
-            return false;
-        }
+        Tag<Material> tag = getMaterialTagByFieldName(tagFieldName);
+        if (tag == null) return false;
         return tag.isTagged(a) && tag.isTagged(b);
     }
 
-    private static final Map<String, Tag> MATERIAL_TAG_CACHE = new ConcurrentHashMap<>();
+    private static final Map<String, Tag<Material>> MATERIAL_TAG_CACHE = new ConcurrentHashMap<>();
     private static final Set<String> MATERIAL_TAG_MISSING = ConcurrentHashMap.newKeySet();
 
-    private static Tag getMaterialTagByFieldName(String tagFieldName) {
-        if (tagFieldName == null || tagFieldName.isBlank()) {
-            return null;
-        }
-        if (MATERIAL_TAG_MISSING.contains(tagFieldName)) {
-            return null;
-        }
+    private static Tag<Material> getMaterialTagByFieldName(String tagFieldName) {
+        if (tagFieldName == null || tagFieldName.isBlank()) return null;
+        if (MATERIAL_TAG_MISSING.contains(tagFieldName)) return null;
 
-        Tag cached = MATERIAL_TAG_CACHE.get(tagFieldName);
-        if (cached != null) {
-            return cached;
-        }
+        Tag<Material> cached = MATERIAL_TAG_CACHE.get(tagFieldName);
+        if (cached != null) return cached;
 
         try {
             Field field = Tag.class.getField(tagFieldName);
             Object value = field.get(null);
-            if (value instanceof Tag) {
-                Tag tag = (Tag) value;
+            if (value instanceof Tag<?>) {
+                @SuppressWarnings("unchecked")
+                Tag<Material> tag = (Tag<Material>) value;
                 MATERIAL_TAG_CACHE.put(tagFieldName, tag);
                 return tag;
             }
@@ -153,12 +122,8 @@ public final class ItemMatch {
     private static boolean nbtEquals(ItemStack movingItem, ItemStack filterItem) {
         ItemMeta movingMeta = movingItem.getItemMeta();
         ItemMeta filterMeta = filterItem.getItemMeta();
-        if (movingMeta == null && filterMeta == null) {
-            return true;
-        }
-        if (movingMeta == null || filterMeta == null) {
-            return false;
-        }
+        if (movingMeta == null && filterMeta == null) return true;
+        if (movingMeta == null || filterMeta == null) return false;
         return metaWithoutDisplayAndDamage(movingMeta).equals(metaWithoutDisplayAndDamage(filterMeta));
     }
 
@@ -171,17 +136,11 @@ public final class ItemMatch {
     }
 
     private static String displayName(ItemStack itemStack) {
-        if (itemStack == null) {
-            return null;
-        }
+        if (itemStack == null) return null;
         var meta = itemStack.getItemMeta();
-        if (meta == null) {
-            return null;
-        }
+        if (meta == null) return null;
         Component display = meta.displayName();
-        if (display == null) {
-            return null;
-        }
+        if (display == null) return null;
         return LEGACY.serialize(display);
     }
 }

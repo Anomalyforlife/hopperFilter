@@ -1,13 +1,14 @@
 package io.github.anomalyforlife.hopperFilter;
 
 import java.io.File;
-import java.sql.DriverManager;
 import java.util.Locale;
 
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandMap;
 import org.bukkit.command.defaults.BukkitCommand;
 import org.bukkit.plugin.java.JavaPlugin;
+
+import com.zaxxer.hikari.HikariConfig;
 
 import io.github.anomalyforlife.hopperFilter.commands.HopperFilterCommand;
 import io.github.anomalyforlife.hopperFilter.gui.FilterGui;
@@ -16,7 +17,7 @@ import io.github.anomalyforlife.hopperFilter.gui.FilterTagSelectGui;
 import io.github.anomalyforlife.hopperFilter.listeners.HopperFilterListener;
 import io.github.anomalyforlife.hopperFilter.model.FilterMatchOptions;
 import io.github.anomalyforlife.hopperFilter.service.FilterService;
-import io.github.anomalyforlife.hopperFilter.storage.ConnectionProvider;
+import io.github.anomalyforlife.hopperFilter.storage.HikariConnectionProvider;
 import io.github.anomalyforlife.hopperFilter.storage.HopperFilterStorage;
 import io.github.anomalyforlife.hopperFilter.storage.JdbcHopperFilterStorage;
 import io.github.anomalyforlife.hopperFilter.util.LanguageManager;
@@ -28,6 +29,7 @@ public final class HopperFilter extends JavaPlugin {
 
     private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacySection();
 
+    private HikariConnectionProvider connectionProvider;
     private HopperFilterStorage storage;
     private FilterService filterService;
     private FilterGui gui;
@@ -36,11 +38,14 @@ public final class HopperFilter extends JavaPlugin {
     private Messages messages;
     private LanguageManager languageManager;
 
+    // FIX #4: il listener viene creato una volta sola e i suoi campi aggiornati al reload
+    private HopperFilterListener listener;
+    private boolean listenerRegistered = false;
+
     @Override
     public void onEnable() {
         saveDefaultConfig();
 
-        // Log plugin version on enable
         getLogger().info("Enabling HopperFilter v" + getPluginMeta().getVersion());
 
         try {
@@ -52,23 +57,13 @@ public final class HopperFilter extends JavaPlugin {
             return;
         }
 
-        getServer().getPluginManager().registerEvents(
-                new HopperFilterListener(
-                        filterService,
-                        gui,
-                        configGui,
-                tagSelectGui,
-                        messages,
-                        getConfig().getInt("tnt.blockedRadius", 5),
-                        languageManager.getMsgCleared(),
-                        languageManager.getMsgMustSneakToBreak(),
-                        languageManager.getMsgMustHaveBreakPerm(),
-                        languageManager.getMsgTooCloseToFilteredHopper()
-                ),
-                this
-        );
+        // FIX #4: registra il listener una volta sola; al reload si aggiorna
+        //         tramite updateListener() senza ri-registrarlo
+        if (!listenerRegistered) {
+            getServer().getPluginManager().registerEvents(listener, this);
+            listenerRegistered = true;
+        }
 
-        // Registra il comando hopperfilter usando CommandMap (Paper-compatible)
         registerCommand();
     }
 
@@ -76,20 +71,20 @@ public final class HopperFilter extends JavaPlugin {
         try {
             final CommandMap commandMap = getServer().getCommandMap();
             final HopperFilterCommand cmdExecutor = new HopperFilterCommand(this::reloadAll, filterService, messages, languageManager);
-            
+
             BukkitCommand hopperFilterCmd = new BukkitCommand("hopperfilter") {
                 {
                     setDescription("HopperFilter admin commands");
                     setUsage("/hopperfilter <reload|info|clear>");
                     setAliases(java.util.List.of("hf"));
                 }
-                
+
                 @Override
                 public boolean execute(org.bukkit.command.CommandSender sender, String label, String[] args) {
                     return cmdExecutor.onCommand(sender, this, label, args);
                 }
             };
-            
+
             commandMap.register("hopperfilter", this.getName().toLowerCase(), hopperFilterCmd);
         } catch (Exception e) {
             getLogger().severe("Failed to register command: " + e.getMessage());
@@ -102,7 +97,14 @@ public final class HopperFilter extends JavaPlugin {
         this.languageManager = new LanguageManager(this);
         this.messages = new Messages(languageManager.getPrefix());
 
-        this.storage = createStorageFromConfig();
+        // FIX #5: chiudi il vecchio provider prima di crearne uno nuovo
+        if (connectionProvider != null) {
+            connectionProvider.close();
+            connectionProvider = null;
+        }
+
+        this.connectionProvider = createConnectionProvider();
+        this.storage = new JdbcHopperFilterStorage(connectionProvider);
         this.storage.init();
 
         int requestedSize = getConfig().getInt("filter.size", 54);
@@ -126,16 +128,44 @@ public final class HopperFilter extends JavaPlugin {
         );
         this.configGui = new FilterMatchConfigGui(filterService, messages, languageManager);
         this.tagSelectGui = new FilterTagSelectGui(filterService, configGui, messages, languageManager);
+
+        // FIX #4: al primo avvio crea il listener; al reload aggiorna i riferimenti interni
+        if (listener == null) {
+            listener = new HopperFilterListener(
+                    filterService,
+                    gui,
+                    configGui,
+                    tagSelectGui,
+                    messages,
+                    getConfig().getInt("tnt.blockedRadius", 5),
+                    languageManager.getMsgCleared(),
+                    languageManager.getMsgMustSneakToBreak(),
+                    languageManager.getMsgMustHaveBreakPerm(),
+                    languageManager.getMsgTooCloseToFilteredHopper()
+            );
+        } else {
+            listener.update(
+                    filterService,
+                    gui,
+                    configGui,
+                    tagSelectGui,
+                    messages,
+                    getConfig().getInt("tnt.blockedRadius", 5),
+                    languageManager.getMsgCleared(),
+                    languageManager.getMsgMustSneakToBreak(),
+                    languageManager.getMsgMustHaveBreakPerm(),
+                    languageManager.getMsgTooCloseToFilteredHopper()
+            );
+        }
     }
 
-    private HopperFilterStorage createStorageFromConfig() {
+    // FIX #5: usa sempre HikariCP, sia per SQLite che per MySQL
+    private HikariConnectionProvider createConnectionProvider() {
         String type = getConfig().getString("storage.type", "sqlite");
         type = type == null ? "sqlite" : type.toLowerCase(Locale.ROOT);
-        ConnectionProvider provider = createConnectionProvider(type);
-        return new JdbcHopperFilterStorage(provider);
-    }
 
-    private ConnectionProvider createConnectionProvider(String type) {
+        HikariConfig config = new HikariConfig();
+
         if ("mysql".equals(type)) {
             String host = getConfig().getString("storage.mysql.host", "127.0.0.1");
             int port = getConfig().getInt("storage.mysql.port", 3306);
@@ -149,13 +179,32 @@ public final class HopperFilter extends JavaPlugin {
             if (params != null && !params.isBlank()) {
                 query += "&" + params;
             }
-            String jdbcUrl = "jdbc:mysql://" + host + ":" + port + "/" + database + "?" + query;
-            return () -> DriverManager.getConnection(jdbcUrl, user, pass);
+
+            config.setJdbcUrl("jdbc:mysql://" + host + ":" + port + "/" + database + "?" + query);
+            config.setUsername(user);
+            config.setPassword(pass);
+            config.setDriverClassName("com.mysql.cj.jdbc.Driver");
+        } else {
+            File dbFile = new File(getDataFolder(), getConfig().getString("storage.sqlite.file", "filters.db"));
+            config.setJdbcUrl("jdbc:sqlite:" + dbFile.getAbsolutePath());
+            config.setDriverClassName("org.sqlite.JDBC");
+            // SQLite non supporta connessioni concorrenti: forza pool size a 1
+            config.setMaximumPoolSize(1);
         }
 
-        File dbFile = new File(getDataFolder(), getConfig().getString("storage.sqlite.file", "filters.db"));
-        String jdbcUrl = "jdbc:sqlite:" + dbFile.getAbsolutePath();
-        return () -> DriverManager.getConnection(jdbcUrl);
+        int maxPool = getConfig().getInt("storage.pool.maximumPoolSize", 10);
+        int minIdle = getConfig().getInt("storage.pool.minimumIdle", 2);
+        long connTimeout = getConfig().getLong("storage.pool.connectionTimeoutMillis", 10000L);
+
+        // Per SQLite il pool size è già stato forzato a 1 sopra; per MySQL usa la config
+        if (!"sqlite".equals(type)) {
+            config.setMaximumPoolSize(maxPool);
+            config.setMinimumIdle(minIdle);
+        }
+        config.setConnectionTimeout(connTimeout);
+        config.setPoolName("HopperFilter-Pool");
+
+        return new HikariConnectionProvider(config);
     }
 
     private static int clampInventorySize(int requested) {
@@ -180,10 +229,8 @@ public final class HopperFilter extends JavaPlugin {
         reloadConfig();
         Bukkit.getScheduler().runTask(this, () -> {
             try {
-                if (storage != null) {
-                    storage.close();
-                }
                 setupAndConnect();
+                getLogger().info("HopperFilter reloaded successfully.");
             } catch (Exception e) {
                 getLogger().severe("Reload failed: " + e.getMessage());
                 e.printStackTrace();
@@ -196,6 +243,11 @@ public final class HopperFilter extends JavaPlugin {
         if (storage != null) {
             storage.close();
             storage = null;
+        }
+        // FIX #5: chiudi il pool HikariCP alla disabilitazione
+        if (connectionProvider != null) {
+            connectionProvider.close();
+            connectionProvider = null;
         }
     }
 }

@@ -1,6 +1,7 @@
 package io.github.anomalyforlife.hopperFilter.listeners;
 
 import java.util.List;
+import java.util.logging.Logger;
 
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -32,18 +33,20 @@ import io.github.anomalyforlife.hopperFilter.util.ItemMatch;
 import io.github.anomalyforlife.hopperFilter.util.Messages;
 
 public final class HopperFilterListener implements Listener {
-    private final FilterService filterService;
-    private final FilterGui gui;
-    private final FilterMatchConfigGui configGui;
-    private final FilterTagSelectGui tagSelectGui;
-    private final Messages messages;
 
-    private final int tntBlockedRadius;
+    private static final Logger LOGGER = Logger.getLogger(HopperFilterListener.class.getName());
 
-    private final String msgCleared;
-    private final String msgMustSneakToBreak;
-    private final String msgMustHaveBreakPerm;
-    private final String msgTooClose;
+    // FIX #4: campi volatile per permettere l'aggiornamento atomico al reload
+    private volatile FilterService filterService;
+    private volatile FilterGui gui;
+    private volatile FilterMatchConfigGui configGui;
+    private volatile FilterTagSelectGui tagSelectGui;
+    private volatile Messages messages;
+    private volatile int tntBlockedRadius;
+    private volatile String msgCleared;
+    private volatile String msgMustSneakToBreak;
+    private volatile String msgMustHaveBreakPerm;
+    private volatile String msgTooClose;
 
     public HopperFilterListener(FilterService filterService,
                                FilterGui gui,
@@ -55,6 +58,32 @@ public final class HopperFilterListener implements Listener {
                                String msgMustSneakToBreak,
                                String msgMustHaveBreakPerm,
                                String msgTooClose) {
+        this.filterService = filterService;
+        this.gui = gui;
+        this.configGui = configGui;
+        this.tagSelectGui = tagSelectGui;
+        this.messages = messages;
+        this.tntBlockedRadius = tntBlockedRadius;
+        this.msgCleared = msgCleared;
+        this.msgMustSneakToBreak = msgMustSneakToBreak;
+        this.msgMustHaveBreakPerm = msgMustHaveBreakPerm;
+        this.msgTooClose = msgTooClose;
+    }
+
+    /**
+     * FIX #4: aggiorna i riferimenti interni dopo un /hf reload,
+     * senza dover ri-registrare il listener con Bukkit.
+     */
+    public synchronized void update(FilterService filterService,
+                                    FilterGui gui,
+                                    FilterMatchConfigGui configGui,
+                                    FilterTagSelectGui tagSelectGui,
+                                    Messages messages,
+                                    int tntBlockedRadius,
+                                    String msgCleared,
+                                    String msgMustSneakToBreak,
+                                    String msgMustHaveBreakPerm,
+                                    String msgTooClose) {
         this.filterService = filterService;
         this.gui = gui;
         this.configGui = configGui;
@@ -195,6 +224,8 @@ public final class HopperFilterListener implements Listener {
 
             destination.addItem(one);
         } catch (Exception e) {
+            // FIX #2: logga invece di ingoiare silenziosamente
+            LOGGER.warning("[HopperFilter] Error in InventoryMoveItemEvent: " + e.getMessage());
         }
     }
 
@@ -237,6 +268,11 @@ public final class HopperFilterListener implements Listener {
             return;
         }
         if (!player.hasPermission("hopperfilter.use")) {
+            return;
+        }
+
+        // FIX #8: slot negativo (es. drag fuori dall'inventario) — ignora subito
+        if (event.getSlot() < 0) {
             return;
         }
 
@@ -303,7 +339,8 @@ public final class HopperFilterListener implements Listener {
                 return;
             }
 
-            if (!player.hasPermission("hopperfilter.admin.break")) {
+            // FIX #1: "hopperfilter.break" — coerente con plugin.yml (era "hopperfilter.admin.break")
+            if (!player.hasPermission("hopperfilter.break")) {
                 messages.actionBar(player, msgMustHaveBreakPerm);
                 event.setCancelled(true);
                 return;
@@ -324,18 +361,26 @@ public final class HopperFilterListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onExplode(EntityExplodeEvent event) {
+        // FIX #3: rimuovi solo gli hopper filtrati dalla blockList invece di
+        //         cancellare l'intera esplosione. I blocchi circostanti vengono
+        //         distrutti normalmente.
         try {
-            for (Block block : event.blockList()) {
+            event.blockList().removeIf(block -> {
                 if (block.getType() != Material.HOPPER) {
-                    continue;
+                    return false;
                 }
-                HopperKey key = HopperKey.fromLocation(block.getLocation());
-                if (filterService.hasAny(key)) {
-                    event.setCancelled(true);
-                    return;
+                try {
+                    HopperKey key = HopperKey.fromLocation(block.getLocation());
+                    return filterService.hasAny(key);
+                } catch (Exception e) {
+                    // FIX #2: logga l'errore; proteggi il blocco per sicurezza
+                    LOGGER.warning("[HopperFilter] Error checking hopper during explosion: " + e.getMessage());
+                    return true;
                 }
-            }
+            });
         } catch (Exception e) {
+            // FIX #2: logga invece di ingoiare silenziosamente
+            LOGGER.warning("[HopperFilter] Error in EntityExplodeEvent: " + e.getMessage());
         }
     }
 
@@ -367,6 +412,8 @@ public final class HopperFilterListener implements Listener {
                 }
             }
         } catch (Exception e) {
+            // FIX #2: logga invece di ingoiare silenziosamente
+            LOGGER.warning("[HopperFilter] Error in BlockPlaceEvent (TNT check): " + e.getMessage());
         }
     }
 }

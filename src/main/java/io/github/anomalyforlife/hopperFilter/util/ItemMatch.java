@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -27,21 +26,14 @@ public final class ItemMatch {
     private ItemMatch() {
     }
 
-    public static boolean isWildcard(ItemStack filterItem) {
-        String name = displayName(filterItem);
-        if (name == null) {
-            return false;
-        }
-        String lower = name.toLowerCase(Locale.ROOT);
-        return lower.contains("ignore") || lower.contains("nbt") || lower.contains("durability") || lower.contains("enchant");
-    }
+    // FIX #7: rimossa la logica isWildcard() basata sul nome dell'item.
+    // Era un residuo della versione Skript originale e causava comportamenti
+    // inaspettati se un giocatore nominava un item con parole come "enchanted"
+    // o "ignore". Il sistema PDC/GUI gestisce già tutto correttamente.
 
     public static boolean matches(ItemStack movingItem, ItemStack filterItem, FilterMatchOptions options) {
         if (movingItem == null || filterItem == null) {
             return false;
-        }
-        if (isWildcard(filterItem)) {
-            return movingItem.getType() == filterItem.getType();
         }
         if (options == null) {
             options = FilterMatchOptions.defaults();
@@ -90,12 +82,11 @@ public final class ItemMatch {
             } catch (IllegalAccessException e) {
                 continue;
             }
-            if (!(value instanceof Tag<?> rawTag)) {
+            if (!(value instanceof Tag rawTag)) {
                 continue;
             }
             try {
-                @SuppressWarnings("unchecked")
-                Tag<Material> materialTag = (Tag<Material>) rawTag;
+                Tag materialTag = (Tag) rawTag;
                 if (materialTag.isTagged(material)) {
                     names.add(field.getName());
                 }
@@ -108,18 +99,17 @@ public final class ItemMatch {
     }
 
     private static boolean bothInTag(String tagFieldName, Material a, Material b) {
-        Tag<Material> tag = getMaterialTagByFieldName(tagFieldName);
+        Tag tag = getMaterialTagByFieldName(tagFieldName);
         if (tag == null) {
             return false;
         }
         return tag.isTagged(a) && tag.isTagged(b);
     }
 
-    private static final Map<String, Tag<Material>> MATERIAL_TAG_CACHE = new ConcurrentHashMap<>();
+    private static final Map<String, Tag> MATERIAL_TAG_CACHE = new ConcurrentHashMap<>();
     private static final Set<String> MATERIAL_TAG_MISSING = ConcurrentHashMap.newKeySet();
 
-    @SuppressWarnings("unchecked")
-    private static Tag<Material> getMaterialTagByFieldName(String tagFieldName) {
+    private static Tag getMaterialTagByFieldName(String tagFieldName) {
         if (tagFieldName == null || tagFieldName.isBlank()) {
             return null;
         }
@@ -127,7 +117,7 @@ public final class ItemMatch {
             return null;
         }
 
-        Tag<Material> cached = MATERIAL_TAG_CACHE.get(tagFieldName);
+        Tag cached = MATERIAL_TAG_CACHE.get(tagFieldName);
         if (cached != null) {
             return cached;
         }
@@ -135,8 +125,8 @@ public final class ItemMatch {
         try {
             Field field = Tag.class.getField(tagFieldName);
             Object value = field.get(null);
-            if (value instanceof Tag<?>) {
-                Tag<Material> tag = (Tag<Material>) value;
+            if (value instanceof Tag) {
+                Tag tag = (Tag) value;
                 MATERIAL_TAG_CACHE.put(tagFieldName, tag);
                 return tag;
             }

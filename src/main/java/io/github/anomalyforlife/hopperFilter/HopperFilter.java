@@ -140,11 +140,13 @@ public final class HopperFilter extends JavaPlugin {
         boolean filteredHopperEnabled = getConfig().getBoolean("filtered-hopper.enabled", true);
         boolean requireSpecialHopper = getConfig().getBoolean("filtered-hopper.require-special-hopper", true);
         boolean specialMode = filteredHopperEnabled && requireSpecialHopper;
+        boolean acceptNameLoreFallback = getConfig().getBoolean("filtered-hopper.accept-name-lore-fallback", false);
 
         this.filterService = new FilterService(
             storage,
             size,
             specialMode,
+            acceptNameLoreFallback,
             getConfig().getString("filtered-hopper.name", "§6Filtered Hopper"),
             getConfig().getStringList("filtered-hopper.lore")
         );

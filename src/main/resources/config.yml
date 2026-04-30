@@ -34,6 +34,12 @@ filtered-hopper:
   enabled: true
   require-special-hopper: true
 
+  # If true, the plugin will also recognize special filtered hoppers by matching
+  # the configured name + lore, even if the PDC tag is missing.
+  # Useful for shop plugins that can't set NBT/PDC tags.
+  # NOTE: This is less strict than using the PDC marker.
+  accept-name-lore-fallback: false
+
   name: "§6Filtered Hopper"
   lore:
     - "§7This hopper can filter items."

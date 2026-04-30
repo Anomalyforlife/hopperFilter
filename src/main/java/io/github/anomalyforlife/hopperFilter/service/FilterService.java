@@ -7,18 +7,28 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import io.github.anomalyforlife.hopperFilter.FilteredHopperItem;
 import io.github.anomalyforlife.hopperFilter.model.HopperKey;
 import io.github.anomalyforlife.hopperFilter.storage.HopperFilterStorage;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 
 public final class FilterService {
+    private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacySection();
+
     private final HopperFilterStorage storage;
     private final int size;
 
     private final String specialHopperName;
     private final List<String> specialHopperLore;
+
+    private final boolean acceptNameLoreFallback;
+    private final String specialHopperNameNormalized;
+    private final List<String> specialHopperLoreNormalized;
 
     private final boolean specialHopperRequired;
     private final ConcurrentHashMap<HopperKey, Boolean> filteredHopperCache;
@@ -28,6 +38,7 @@ public final class FilterService {
     public FilterService(HopperFilterStorage storage,
                          int size,
                          boolean specialHopperRequired,
+                         boolean acceptNameLoreFallback,
                          String specialHopperName,
                          List<String> specialHopperLore) throws Exception {
         this.storage = Objects.requireNonNull(storage, "storage");
@@ -38,6 +49,13 @@ public final class FilterService {
 
         this.specialHopperName = specialHopperName;
         this.specialHopperLore = specialHopperLore == null ? java.util.List.of() : java.util.List.copyOf(specialHopperLore);
+
+        this.acceptNameLoreFallback = acceptNameLoreFallback;
+        this.specialHopperNameNormalized = normalizeLegacy(specialHopperName);
+        this.specialHopperLoreNormalized = this.specialHopperLore.stream()
+            .filter(Objects::nonNull)
+            .map(FilterService::normalizeLegacy)
+            .toList();
 
         this.specialHopperRequired = specialHopperRequired;
         if (specialHopperRequired) {
@@ -59,6 +77,67 @@ public final class FilterService {
 
     public ItemStack createSpecialHopperItem(int amount) {
         return FilteredHopperItem.create(amount, specialHopperName, specialHopperLore);
+    }
+
+    /**
+     * Returns true if the given item is a special (filtered) hopper item.
+     * Primary signal is a PDC marker. Optional fallback can match display name + lore.
+     */
+    public boolean isSpecialHopperItem(ItemStack stack) {
+        if (FilteredHopperItem.isSpecial(stack)) {
+            return true;
+        }
+        if (!acceptNameLoreFallback) {
+            return false;
+        }
+        return matchesNameAndLore(stack);
+    }
+
+    private boolean matchesNameAndLore(ItemStack stack) {
+        if (stack == null || stack.getType() != Material.HOPPER) {
+            return false;
+        }
+        ItemMeta meta = stack.getItemMeta();
+        if (meta == null) {
+            return false;
+        }
+
+        if (specialHopperNameNormalized != null && !specialHopperNameNormalized.isBlank()) {
+            Component displayName = meta.displayName();
+            if (displayName == null) {
+                return false;
+            }
+            String actualName = normalizeLegacy(LEGACY.serialize(displayName));
+            if (!Objects.equals(specialHopperNameNormalized, actualName)) {
+                return false;
+            }
+        }
+
+        if (!specialHopperLoreNormalized.isEmpty()) {
+            List<Component> lore = meta.lore();
+            if (lore == null || lore.size() < specialHopperLoreNormalized.size()) {
+                return false;
+            }
+            for (int i = 0; i < specialHopperLoreNormalized.size(); i++) {
+                Component line = lore.get(i);
+                if (line == null) {
+                    return false;
+                }
+                String actualLine = normalizeLegacy(LEGACY.serialize(line));
+                if (!Objects.equals(specialHopperLoreNormalized.get(i), actualLine)) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static String normalizeLegacy(String s) {
+        if (s == null) {
+            return null;
+        }
+        return s.replace('&', '§');
     }
 
     public boolean isSpecialHopperRequired() {

@@ -21,7 +21,6 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
-import io.github.anomalyforlife.hopperFilter.FilteredHopperItem;
 import io.github.anomalyforlife.hopperFilter.gui.FilterGui;
 import io.github.anomalyforlife.hopperFilter.gui.FilterGuiHolder;
 import io.github.anomalyforlife.hopperFilter.gui.FilterMatchConfigGui;
@@ -289,7 +288,7 @@ public final class HopperFilterListener implements Listener {
         }
 
         ItemStack placedItem = event.getItemInHand();
-        if (!FilteredHopperItem.isSpecial(placedItem)) {
+        if (!filterService.isSpecialHopperItem(placedItem)) {
             return;
         }
 

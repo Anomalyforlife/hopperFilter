@@ -27,30 +27,52 @@ repositories {
     }
 }
 
+configurations {
+    // Dependencies embedded into the default published JAR.
+    // Keep this tiny (e.g. connection pool) so the artifact stays under Hangar's 15MB limit.
+    shaded
+}
+
 dependencies {
     compileOnly("io.papermc.paper:paper-api:${paperApiVersion}")
 
     // Runtime deps (needed by the plugin). The thin jar stays thin; the "-all" shadowJar includes them.
     // Paper can also download them via (paper-)plugin.yml libraries.
     implementation "com.zaxxer:HikariCP:5.1.0"
+    shaded "com.zaxxer:HikariCP:5.1.0"
     implementation "org.xerial:sqlite-jdbc:3.45.3.0"
     implementation "com.mysql:mysql-connector-j:8.3.0"
     implementation "com.google.code.gson:gson:2.10.1"
 }
 
-// IMPORTANT: shadowJar deve avere un classifier diverso dal jar normale (no overwrite)
+// Published default JAR: embeds only the small, always-required libs (e.g. HikariCP),
+// so the plugin can still start even when Paper cannot download libraries.
 tasks.named("shadowJar", com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar).configure {
+    archiveClassifier.set("")
+    configurations = [project.configurations.shaded]
+}
+
+// Fully shaded JAR for offline installs.
+tasks.register("shadowAllJar", com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
     archiveClassifier.set("all")
+    configurations = [project.configurations.runtimeClasspath]
+}
+
+// Keep the plain jar available as an explicit "thin" artifact.
+tasks.named("jar").configure {
+    archiveClassifier.set("thin")
 }
 
 tasks.named("build").configure {
     dependsOn(tasks.named("shadowJar"))
+    dependsOn(tasks.named("shadowAllJar"))
 }
 
 tasks {
     runServer {
         minecraftVersion(runPaperMcVersion)
-        pluginJars.from(tasks.named("shadowJar"))
+        // Use the fully shaded jar for local runs so it works without needing library downloads.
+        pluginJars.from(tasks.named("shadowAllJar"))
     }
 }
 
@@ -116,7 +138,7 @@ if (changelogContent == null || changelogContent.isBlank()) {
     changelogContent = "Automated publish."
 }
 
-// Hangar deve caricare il jar "thin"
+// Hangar carica il jar di default (shadowJar) che incorpora HikariCP.
 hangarPublish {
     publications.register("plugin") {
         version.set(suffixedVersion)
@@ -129,7 +151,8 @@ hangarPublish {
 
         platforms {
             register(io.papermc.hangarpublishplugin.model.Platforms.PAPER) {
-                jar.set(tasks.named("jar").flatMap { it.archiveFile })
+                // Upload the default published jar (embeds HikariCP).
+                jar.set(tasks.named("shadowJar").flatMap { it.archiveFile })
 
                 platformVersions.set(
                         (property("paperVersion") as String)
@@ -144,10 +167,10 @@ hangarPublish {
 
 // Dipendenza esplicita: publish usa jar
 tasks.matching { it.name == "publishPluginPublicationToHangar" }.configureEach {
-    dependsOn(tasks.named("jar"))
+    dependsOn(tasks.named("shadowJar"))
 }
 
-tasks.named("jar").configure {
+tasks.named("shadowJar").configure {
     doLast {
         def f = archiveFile.get().asFile
         def maxBytes = 15L * 1024L * 1024L

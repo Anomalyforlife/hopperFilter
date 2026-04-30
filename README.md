@@ -176,8 +176,9 @@ Contains all plugin texts (GUI titles, tooltips, messages, commands). You can cu
 4. Configure permissions and (optionally) the database.
 
 Tip:
-- You can use the normal “thin” jar (Paper will download runtime libraries declared in `plugin.yml` / `paper-plugin.yml`).
-- Or use the `*-all.jar` shadow jar (contains runtime deps).
+- The default jar embeds **HikariCP** (so it works even if Paper cannot download libraries).
+- `*-thin.jar` is the fully thin artifact (Paper will download runtime libraries declared in `plugin.yml` / `paper-plugin.yml`).
+- `*-all.jar` is the fully shaded jar (contains all runtime deps) for fully-offline installs.
 
 ## Build & Dev (for developers)
 
@@ -186,7 +187,7 @@ Requirements:
 - Gradle installed (this repo does not include `gradlew.bat`/`gradlew`)
 
 Useful tasks:
-- Build jar (shadowJar without classifier):
+- Build default jar (embeds HikariCP):
   - `gradle shadowJar`
 - Full build:
   - `gradle build`

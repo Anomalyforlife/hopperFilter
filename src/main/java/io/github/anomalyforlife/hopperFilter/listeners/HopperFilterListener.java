@@ -17,6 +17,7 @@ import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryMoveItemEvent;
+import org.bukkit.event.inventory.InventoryPickupItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -232,6 +233,38 @@ public final class HopperFilterListener implements Listener {
         } catch (Exception e) {
             // FIX #2: logga invece di ingoiare silenziosamente
             LOGGER.log(java.util.logging.Level.WARNING, "[HopperFilter] Error in InventoryMoveItemEvent", e);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onInventoryPickupItem(InventoryPickupItemEvent event) {
+        Inventory inventory = event.getInventory();
+        if (!(inventory.getHolder() instanceof Hopper hopperHolder)) {
+            return;
+        }
+
+        try {
+            HopperKey key = HopperKey.fromLocation(hopperHolder.getLocation());
+
+            // Special-hopper mode: ignore non-special hoppers entirely.
+            if (!filterService.isFilteredHopper(key)) {
+                return;
+            }
+
+            ItemStack[] filter = filterService.getOrLoadView(key);
+            List<CompiledEntry> compiled = compileFilter(filter);
+            if (!isActive(compiled)) {
+                return;
+            }
+
+            ItemStack attempted = event.getItem() == null ? null : event.getItem().getItemStack();
+            if (allows(compiled, attempted)) {
+                return;
+            }
+
+            event.setCancelled(true);
+        } catch (Exception e) {
+            LOGGER.log(java.util.logging.Level.WARNING, "[HopperFilter] Error in InventoryPickupItemEvent", e);
         }
     }
 

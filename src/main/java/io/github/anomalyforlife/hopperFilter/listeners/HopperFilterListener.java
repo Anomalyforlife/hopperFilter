@@ -206,6 +206,7 @@ public final class HopperFilterListener implements Listener {
                 return;
             }
 
+            // BUG FIX #10: Re-verify the slot is still valid (race condition guard)
             ItemStack sourceItem = source.getItem(sourceSlot);
             if (sourceItem == null || sourceItem.getType().isAir()) {
                 event.setCancelled(true);
@@ -219,14 +220,17 @@ public final class HopperFilterListener implements Listener {
                 return;
             }
 
+            // BUG FIX #10: Clone before modifying to avoid race conditions
+            ItemStack clonedSourceItem = sourceItem.clone();
+            
             event.setCancelled(true);
 
-            int newAmount = sourceItem.getAmount() - 1;
+            int newAmount = clonedSourceItem.getAmount() - 1;
             if (newAmount <= 0) {
                 source.setItem(sourceSlot, null);
             } else {
-                sourceItem.setAmount(newAmount);
-                source.setItem(sourceSlot, sourceItem);
+                clonedSourceItem.setAmount(newAmount);
+                source.setItem(sourceSlot, clonedSourceItem);
             }
 
             destination.addItem(one);
@@ -438,6 +442,21 @@ public final class HopperFilterListener implements Listener {
             // If this is a special filtered hopper, preserve its identity on drop.
             if (isSpecialFilteredHopper) {
                 event.setDropItems(false);
+                
+                // BUG FIX #9: Drop the hopper contents manually before dropping the special hopper item
+                try {
+                    org.bukkit.block.BlockState state = block.getState();
+                    if (state instanceof Hopper hopper) {
+                        for (ItemStack item : hopper.getInventory().getContents()) {
+                            if (item != null && !item.getType().isAir()) {
+                                block.getWorld().dropItemNaturally(block.getLocation().add(0.5, 0.5, 0.5), item.clone());
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    LOGGER.log(java.util.logging.Level.WARNING, "[HopperFilter] Error dropping hopper contents", e);
+                }
+                
                 if (player.getGameMode() != GameMode.CREATIVE) {
                     block.getWorld().dropItemNaturally(block.getLocation().add(0.5, 0.5, 0.5), filterService.createSpecialHopperItem(1));
                 }

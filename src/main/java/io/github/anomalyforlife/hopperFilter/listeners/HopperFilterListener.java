@@ -123,12 +123,31 @@ public final class HopperFilterListener implements Listener {
         if (!isActive(compiled)) {
             return true;
         }
+        
+        // BUG FIX #11: Implementa logica blacklist/whitelist
+        // Se l'item matcha QUALSIASI blacklist item, viene bloccato
         for (CompiledEntry entry : compiled) {
-            if (ItemMatch.matches(movingItem, entry.filterItem(), entry.options())) {
-                return true;
+            if (entry.options().isBlacklisted() && ItemMatch.matches(movingItem, entry.filterItem(), entry.options())) {
+                return false;  // Bloccato dalla blacklist
             }
         }
-        return false;
+        
+        // Se l'item matcha QUALSIASI whitelist item, è consentito
+        for (CompiledEntry entry : compiled) {
+            if (!entry.options().isBlacklisted() && ItemMatch.matches(movingItem, entry.filterItem(), entry.options())) {
+                return true;  // Consentito dalla whitelist
+            }
+        }
+        
+        // Se esiste almeno un item in whitelist e non matcha nessuno, blocca
+        for (CompiledEntry entry : compiled) {
+            if (!entry.options().isBlacklisted()) {
+                return false;  // Esiste whitelist, ma non matcha niente
+            }
+        }
+        
+        // Se ci sono solo blacklist items e non matcha nessuno, consenti
+        return true;
     }
 
     private static int findFirstAllowedSlot(Inventory source, Inventory destination, List<CompiledEntry> compiled) {

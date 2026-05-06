@@ -6,6 +6,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import io.github.anomalyforlife.hopperFilter.model.FilterMatchOptions;
 import io.github.anomalyforlife.hopperFilter.model.HopperKey;
@@ -51,7 +52,7 @@ public final class FilterGui {
         int size = filterService.size();
         Inventory inv = Bukkit.createInventory(new FilterGuiHolder(key), size, title);
         for (int i = 0; i < size; i++) {
-            inv.setItem(i, items[i]);
+            inv.setItem(i, addListIndicator(items[i]));
         }
         player.openInventory(inv);
     }
@@ -94,7 +95,7 @@ public final class FilterGui {
         filter[empty] = stored;
 
         filterService.saveAndCache(key, filter);
-        gui.setItem(empty, stored);
+        gui.setItem(empty, addListIndicator(stored));
 
         if (isWarningName(stored)) {
             messages.actionBar(player, msgAddedWarning);
@@ -124,7 +125,7 @@ public final class FilterGui {
 
         filterService.saveAndCache(key, filter);
         for (int i = 0; i < filterService.size(); i++) {
-            gui.setItem(i, filter[i]);
+            gui.setItem(i, addListIndicator(filter[i]));
         }
         messages.actionBar(player, msgRemoved);
     }
@@ -176,5 +177,32 @@ public final class FilterGui {
             return null;
         }
         return LEGACY.serialize(display);
+    }
+
+    /**
+     * Aggiunge l'indicatore visivo di blacklist/whitelist al display name dell'item.
+     * ● per BLACKLIST (nero), ○ per WHITELIST (bianco)
+     */
+    private static ItemStack addListIndicator(ItemStack item) {
+        if (item == null || item.getType().isAir()) {
+            return item;
+        }
+        ItemStack clone = item.clone();
+        FilterMatchOptions options = FilterMatchOptions.from(clone);
+        ItemMeta meta = clone.getItemMeta();
+        if (meta == null) {
+            return clone;
+        }
+
+        Component currentDisplay = meta.displayName();
+        String displayText = currentDisplay != null ? LEGACY.serialize(currentDisplay) : clone.getType().toString();
+        
+        // Aggiungi indicatore PRIMA del nome: ● per blacklist, ○ per whitelist
+        String indicator = options.isBlacklisted() ? "§8● " : "§f○ ";
+        String newDisplayText = indicator + displayText;
+        
+        meta.displayName(LEGACY.deserialize(newDisplayText));
+        clone.setItemMeta(meta);
+        return clone;
     }
 }

@@ -77,7 +77,7 @@ public final class FilterMatchConfigGui {
         ItemStack filler = createFillerPane();
         inventory.setItem(0, entry.clone());
         inventory.setItem(1, filler.clone());
-        inventory.setItem(2, filler.clone());
+        inventory.setItem(2, createOptionEntry(2, languageManager.getMatchBlacklist(), options).createItem(options, languageManager));
         inventory.setItem(3, filler.clone());
         inventory.setItem(4, createOptionEntry(4, languageManager.getMatchMaterial(), options).createItem(options, languageManager));
         inventory.setItem(5, createOptionEntry(5, languageManager.getMatchDurability(), options).createItem(options, languageManager));
@@ -88,6 +88,7 @@ public final class FilterMatchConfigGui {
 
     private OptionEntry optionForSlot(int slot) {
         return switch (slot) {
+            case 2 -> createOptionEntry(2, languageManager.getMatchBlacklist(), null);
             case 4 -> createOptionEntry(4, languageManager.getMatchMaterial(), null);
             case 5 -> createOptionEntry(5, languageManager.getMatchDurability(), null);
             case 6 -> createOptionEntry(6, languageManager.getMatchName(), null);
@@ -99,6 +100,7 @@ public final class FilterMatchConfigGui {
 
     private OptionEntry createOptionEntry(int slot, LanguageManager.OptionTexts texts, FilterMatchOptions options) {
         Material material = switch (slot) {
+            case 2 -> Material.CANDLE;
             case 4 -> Material.DIAMOND;
             case 5 -> Material.IRON_PICKAXE;
             case 6 -> Material.NAME_TAG;
@@ -108,6 +110,7 @@ public final class FilterMatchConfigGui {
         };
 
         Function<FilterMatchOptions, Boolean> getter = switch (slot) {
+            case 2 -> FilterMatchOptions::isBlacklisted;
             case 4 -> FilterMatchOptions::matchType;
             case 5 -> FilterMatchOptions::matchDurability;
             case 6 -> FilterMatchOptions::matchName;
@@ -117,6 +120,7 @@ public final class FilterMatchConfigGui {
         };
 
         Function<FilterMatchOptions, FilterMatchOptions> toggler = switch (slot) {
+            case 2 -> opts -> opts.withIsBlacklisted(!opts.isBlacklisted());
             case 4 -> opts -> opts.withMatchType(!opts.matchType());
             case 5 -> opts -> opts.withMatchDurability(!opts.matchDurability());
             case 6 -> opts -> opts.withMatchName(!opts.matchName());
@@ -168,7 +172,14 @@ public final class FilterMatchConfigGui {
 
         private ItemStack createItem(FilterMatchOptions options, LanguageManager languageManager) {
             boolean enabled = Boolean.TRUE.equals(valueGetter.apply(options));
-            ItemStack item = new ItemStack(material);
+            
+            // Usa materiale dinamico per lo slot blacklist/whitelist
+            Material itemMaterial = material;
+            if (slot == 2) {
+                itemMaterial = options.isBlacklisted() ? Material.BLACK_CANDLE : Material.WHITE_CANDLE;
+            }
+            
+            ItemStack item = new ItemStack(itemMaterial);
             ItemMeta meta = item.getItemMeta();
             if (meta != null && texts != null) {
                 String state = enabled ? texts.getOnState() : texts.getOffState();
@@ -193,6 +204,12 @@ public final class FilterMatchConfigGui {
 
         private String message(FilterMatchOptions options, LanguageManager languageManager) {
             boolean enabled = Boolean.TRUE.equals(valueGetter.apply(options));
+            
+            // Messaggio speciale per blacklist/whitelist
+            if (slot == 2) {
+                return "§a" + (options.isBlacklisted() ? "Blacklist attivato" : "Whitelist attivato");
+            }
+            
             if (texts != null) {
                 return "§a" + texts.getName() + " " + (enabled ? "attivato" : "disattivato");
             }

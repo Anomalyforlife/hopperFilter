@@ -43,6 +43,7 @@ public final class LanguageManager {
     private final OptionTexts matchName;
     private final OptionTexts matchNBT;
     private final OptionTexts matchTag;
+    private final OptionTexts matchBlacklist;
 
     private final String tagSelectTitle;
     private final String tagSelectBack;
@@ -121,6 +122,12 @@ public final class LanguageManager {
             config.getString("gui.options.match-tag.description", "Raggruppa item con lo stesso tag (ad es. tutte le plank)."),
             config.getString("gui.options.match-tag.on", "§aON"),
             config.getString("gui.options.match-tag.off", "§cOFF")
+        );
+        this.matchBlacklist = new OptionTexts(
+            config.getString("gui.options.match-blacklist.name", "Blacklist/Whitelist"),
+            config.getString("gui.options.match-blacklist.description", "Attiva la blacklist (blocca l'item) o mantieni la whitelist (consenti l'item)."),
+            config.getString("gui.options.match-blacklist.on", "§4BLACKLIST"),
+            config.getString("gui.options.match-blacklist.off", "§fWHITELIST")
         );
 
         this.tagSelectTitle = config.getString("gui.tag-select.title", "§6Select Tag");
@@ -256,6 +263,10 @@ public final class LanguageManager {
 
     public OptionTexts getMatchTag() {
         return matchTag;
+    }
+
+    public OptionTexts getMatchBlacklist() {
+        return matchBlacklist;
     }
 
     public String getTagSelectTitle() {

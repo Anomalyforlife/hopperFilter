@@ -18,6 +18,7 @@ public final class FilterMatchOptions {
     private static NamespacedKey KEY_NAME;
     private static NamespacedKey KEY_TAG;
     private static NamespacedKey KEY_TAG_NAME;
+    private static NamespacedKey KEY_BLACKLISTED;
 
     private final boolean matchType;
     private final boolean matchDurability;
@@ -25,14 +26,16 @@ public final class FilterMatchOptions {
     private final boolean matchName;
     private final boolean matchTag;
     private final String matchTagName;
+    private final boolean isBlacklisted;
 
-    private FilterMatchOptions(boolean matchType, boolean matchDurability, boolean matchNBT, boolean matchName, boolean matchTag, String matchTagName) {
+    private FilterMatchOptions(boolean matchType, boolean matchDurability, boolean matchNBT, boolean matchName, boolean matchTag, String matchTagName, boolean isBlacklisted) {
         this.matchType = matchType;
         this.matchDurability = matchDurability;
         this.matchNBT = matchNBT;
         this.matchName = matchName;
         this.matchTag = matchTag;
         this.matchTagName = matchTagName;
+        this.isBlacklisted = isBlacklisted;
     }
 
     public static void init(Plugin plugin) {
@@ -43,16 +46,17 @@ public final class FilterMatchOptions {
         KEY_NAME = new NamespacedKey(plugin, "match_name");
         KEY_TAG = new NamespacedKey(plugin, "match_tag");
         KEY_TAG_NAME = new NamespacedKey(plugin, "match_tag_name");
+        KEY_BLACKLISTED = new NamespacedKey(plugin, "is_blacklisted");
     }
 
     private static void ensureInitialized() {
-        if (KEY_TYPE == null || KEY_DURABILITY == null || KEY_NBT == null || KEY_NAME == null || KEY_TAG == null || KEY_TAG_NAME == null) {
+        if (KEY_TYPE == null || KEY_DURABILITY == null || KEY_NBT == null || KEY_NAME == null || KEY_TAG == null || KEY_TAG_NAME == null || KEY_BLACKLISTED == null) {
             throw new IllegalStateException("FilterMatchOptions not initialized");
         }
     }
 
     public static FilterMatchOptions defaults() {
-        return new FilterMatchOptions(true, true, false, false, false, null);
+        return new FilterMatchOptions(true, true, false, false, false, null, false);
     }
 
     public static FilterMatchOptions from(ItemStack item) {
@@ -70,6 +74,7 @@ public final class FilterMatchOptions {
         byte nbt = deserialize(container.get(KEY_NBT, PersistentDataType.BYTE), DISABLED);
         byte name = deserialize(container.get(KEY_NAME, PersistentDataType.BYTE), DISABLED);
         byte tag = deserialize(container.get(KEY_TAG, PersistentDataType.BYTE), DISABLED);
+        byte blacklisted = deserialize(container.get(KEY_BLACKLISTED, PersistentDataType.BYTE), DISABLED);
 
         String tagName = container.get(KEY_TAG_NAME, PersistentDataType.STRING);
         if (tagName != null && tagName.isBlank()) {
@@ -77,7 +82,7 @@ public final class FilterMatchOptions {
         }
 
         boolean tagEnabled = tag == ENABLED && tagName != null;
-        return new FilterMatchOptions(type == ENABLED, durability == ENABLED, nbt == ENABLED, name == ENABLED, tagEnabled, tagName);
+        return new FilterMatchOptions(type == ENABLED, durability == ENABLED, nbt == ENABLED, name == ENABLED, tagEnabled, tagName, blacklisted == ENABLED);
     }
 
     public void applyTo(ItemStack item) {
@@ -94,6 +99,7 @@ public final class FilterMatchOptions {
         container.set(KEY_DURABILITY, PersistentDataType.BYTE, (byte) (matchDurability ? ENABLED : DISABLED));
         container.set(KEY_NBT, PersistentDataType.BYTE, (byte) (matchNBT ? ENABLED : DISABLED));
         container.set(KEY_NAME, PersistentDataType.BYTE, (byte) (matchName ? ENABLED : DISABLED));
+        container.set(KEY_BLACKLISTED, PersistentDataType.BYTE, (byte) (isBlacklisted ? ENABLED : DISABLED));
 
         boolean tagEnabled = matchTag && matchTagName != null && !matchTagName.isBlank();
         container.set(KEY_TAG, PersistentDataType.BYTE, (byte) (tagEnabled ? ENABLED : DISABLED));
@@ -129,31 +135,39 @@ public final class FilterMatchOptions {
         return matchTagName;
     }
 
+    public boolean isBlacklisted() {
+        return isBlacklisted;
+    }
+
     public FilterMatchOptions withMatchType(boolean value) {
-        return new FilterMatchOptions(value, matchDurability, matchNBT, matchName, matchTag, matchTagName);
+        return new FilterMatchOptions(value, matchDurability, matchNBT, matchName, matchTag, matchTagName, isBlacklisted);
     }
 
     public FilterMatchOptions withMatchDurability(boolean value) {
-        return new FilterMatchOptions(matchType, value, matchNBT, matchName, matchTag, matchTagName);
+        return new FilterMatchOptions(matchType, value, matchNBT, matchName, matchTag, matchTagName, isBlacklisted);
     }
 
     public FilterMatchOptions withMatchNBT(boolean value) {
-        return new FilterMatchOptions(matchType, matchDurability, value, matchName, matchTag, matchTagName);
+        return new FilterMatchOptions(matchType, matchDurability, value, matchName, matchTag, matchTagName, isBlacklisted);
     }
 
     public FilterMatchOptions withMatchName(boolean value) {
-        return new FilterMatchOptions(matchType, matchDurability, matchNBT, value, matchTag, matchTagName);
+        return new FilterMatchOptions(matchType, matchDurability, matchNBT, value, matchTag, matchTagName, isBlacklisted);
     }
 
     public FilterMatchOptions withMatchTag(boolean value) {
-        return new FilterMatchOptions(matchType, matchDurability, matchNBT, matchName, value, value ? matchTagName : null);
+        return new FilterMatchOptions(matchType, matchDurability, matchNBT, matchName, value, value ? matchTagName : null, isBlacklisted);
     }
 
     public FilterMatchOptions withMatchTagName(String tagName) {
         if (tagName != null && tagName.isBlank()) {
             tagName = null;
         }
-        return new FilterMatchOptions(matchType, matchDurability, matchNBT, matchName, tagName != null, tagName);
+        return new FilterMatchOptions(matchType, matchDurability, matchNBT, matchName, tagName != null, tagName, isBlacklisted);
+    }
+
+    public FilterMatchOptions withIsBlacklisted(boolean value) {
+        return new FilterMatchOptions(matchType, matchDurability, matchNBT, matchName, matchTag, matchTagName, value);
     }
 
     private static byte deserialize(Byte value, byte defaultValue) {

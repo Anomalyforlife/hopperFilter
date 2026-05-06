@@ -21,6 +21,7 @@ import org.bukkit.event.inventory.InventoryPickupItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import io.github.anomalyforlife.hopperFilter.gui.FilterGui;
 import io.github.anomalyforlife.hopperFilter.gui.FilterGuiHolder;
@@ -477,7 +478,30 @@ public final class HopperFilterListener implements Listener {
                 }
                 
                 if (player.getGameMode() != GameMode.CREATIVE) {
-                    block.getWorld().dropItemNaturally(block.getLocation().add(0.5, 0.5, 0.5), filterService.createSpecialHopperItem(1));
+                    // BUG FIX #12: Crea un hopper pulito senza metadata di vanilla per evitare problemi di stacking
+                    ItemStack hopper = new ItemStack(Material.HOPPER, 1);
+                    ItemMeta meta = hopper.getItemMeta();
+                    if (meta != null) {
+                        // Copia i metadata dal special hopper template
+                        ItemStack template = filterService.createSpecialHopperItem(1);
+                        ItemMeta templateMeta = template.getItemMeta();
+                        if (templateMeta != null) {
+                            if (templateMeta.hasDisplayName()) {
+                                meta.displayName(templateMeta.displayName());
+                            }
+                            if (templateMeta.hasLore()) {
+                                meta.lore(templateMeta.lore());
+                            }
+                            // Copia il PDC marker
+                            meta.getPersistentDataContainer().set(
+                                io.github.anomalyforlife.hopperFilter.FilteredHopperItem.KEY,
+                                org.bukkit.persistence.PersistentDataType.BYTE,
+                                (byte) 1
+                            );
+                        }
+                        hopper.setItemMeta(meta);
+                    }
+                    block.getWorld().dropItemNaturally(block.getLocation().add(0.5, 0.5, 0.5), hopper);
                 }
             }
 

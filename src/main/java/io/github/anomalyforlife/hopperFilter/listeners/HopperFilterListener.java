@@ -357,7 +357,8 @@ public final class HopperFilterListener implements Listener {
             HopperKey key = HopperKey.fromLocation(event.getBlockPlaced().getLocation());
             filterService.registerFilteredHopper(key, event.getPlayer().getUniqueId());
             if (upgradeService != null) {
-                upgradeService.registerHopper(key);
+                int level = io.github.anomalyforlife.hopperFilter.FilteredHopperItem.getLevel(placedItem);
+                upgradeService.registerHopper(key, level);
             }
         } catch (Exception e) {
             event.setCancelled(true);
@@ -546,6 +547,16 @@ public final class HopperFilterListener implements Listener {
                             );
                         }
                         hopper.setItemMeta(meta);
+                    }
+                    UpgradeService us = upgradeService;
+                    if (us != null && us.getConfig().isEnabled()) {
+                        int level = us.getLevel(key);
+                        io.github.anomalyforlife.hopperFilter.FilteredHopperItem.setLevel(hopper, level);
+                        io.github.anomalyforlife.hopperFilter.FilteredHopperItem.applyLevelLore(
+                            hopper, level,
+                            lang.getFilteredHopperLevelLore(level),
+                            filterService.getSpecialHopperLore()
+                        );
                     }
                     block.getWorld().dropItemNaturally(block.getLocation().add(0.5, 0.5, 0.5), hopper);
                 }

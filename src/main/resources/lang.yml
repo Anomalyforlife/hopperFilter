@@ -108,6 +108,9 @@ commands:
   cleared-via-command: "§a§l✓ §aHopper filter cleared!"
   unknown-subcommand: "§c§l✗ §cUnknown subcommand. §7Try: reload, info, clear, give"
 
+filtered-hopper:
+  level-lore: "§7Upgrade Level: §e{level}"
+
 upgrade-gui:
   button-name: "§e⬆ §6Upgrade Hopper §e⬆"
   button-level: "§7Level: §e{level}§7/§e{max}"

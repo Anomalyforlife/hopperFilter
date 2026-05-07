@@ -53,7 +53,18 @@ public final class UpgradeService {
 
     /** Called when a new special hopper is placed. */
     public void registerHopper(HopperKey key) {
-        levelCache.putIfAbsent(key, 1);
+        registerHopper(key, 1);
+    }
+
+    /** Called when a special hopper is placed with a known starting level. */
+    public void registerHopper(HopperKey key, int level) {
+        int clamped = Math.max(1, Math.min(level, config.getMaxLevel()));
+        levelCache.put(key, clamped);
+        try {
+            storage.saveHopperLevel(key, clamped);
+        } catch (Exception e) {
+            LOGGER.warning("[HopperFilter] Failed to persist hopper level on place: " + e.getMessage());
+        }
     }
 
     /** Called when a special hopper is broken. */

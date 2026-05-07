@@ -78,6 +78,10 @@ public final class FilterService {
         return FilteredHopperItem.create(amount, specialHopperName, specialHopperLore);
     }
 
+    public List<String> getSpecialHopperLore() {
+        return specialHopperLore;
+    }
+
     /**
      * Returns true if the given item is a special (filtered) hopper item.
      * Primary signal is a PDC marker. Optional fallback can match display name + lore.

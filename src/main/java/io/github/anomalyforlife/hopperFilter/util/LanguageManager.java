@@ -63,6 +63,9 @@ public final class LanguageManager {
     private final String msgUpgradeError;
     private final String msgUpgradeLockedSlot;
 
+    // Filtered hopper item texts
+    private final String filteredHopperLevelLore;
+
     // Upgrade GUI texts
     private final String upgradeButtonName;
     private final String upgradeButtonLevel;
@@ -158,6 +161,8 @@ public final class LanguageManager {
         this.tagSelectItemLine = config.getString("gui.tag-select.item-line", "§7Item: §f{item}");
         this.tagSelectSelectedLine = config.getString("gui.tag-select.selected-line", "§aSelected");
         this.tagSelectClickToSelectLine = config.getString("gui.tag-select.click-to-select-line", "§7Click to select");
+
+        this.filteredHopperLevelLore = config.getString("filtered-hopper.level-lore", "§7Upgrade Level: §e{level}");
 
         this.msgUpgradeSuccess = config.getString("messages.upgrade-success", "§a§l✓ §aHopper upgraded to level §e{level}§a!");
         this.msgUpgradeMaxLevel = config.getString("messages.upgrade-max-level", "§e§l! §eThis hopper is already at max level!");
@@ -341,6 +346,10 @@ public final class LanguageManager {
 
     public String getTagSelectClickToSelectLine() {
         return tagSelectClickToSelectLine;
+    }
+
+    public String getFilteredHopperLevelLore(int level) {
+        return filteredHopperLevelLore.replace("{level}", String.valueOf(level));
     }
 
     public String getMsgUpgradeSuccess(int level) {

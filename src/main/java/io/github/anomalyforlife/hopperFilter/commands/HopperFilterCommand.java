@@ -219,7 +219,8 @@ public final class HopperFilterCommand implements CommandExecutor {
                 try {
                     int count = upgradeService.upgradeAllToMax(targetUuid);
                     if (count == 0) {
-                        messages.send(sender, "§e" + targetName + " has no filtered hoppers to upgrade.");
+                        messages.send(sender, "§e" + targetName + " has no tracked filtered hoppers. "
+                                + "§7(Hoppers placed before owner-tracking was added have no owner data — use /hf upgraderadius instead.)");
                     } else {
                         messages.send(sender, "§aUpgraded §f" + count + "§a hopper(s) of §f" + targetName + "§a to max level.");
                     }

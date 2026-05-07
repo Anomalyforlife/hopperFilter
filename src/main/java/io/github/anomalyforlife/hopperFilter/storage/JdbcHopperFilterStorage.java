@@ -67,7 +67,7 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
     @Override
     public void initFilteredHopperLocations() throws SQLException {
         try (Connection connection = connectionProvider.getConnection()) {
-            // Create table with level column for new installs
+            // Full schema for new installs — all columns present from the start.
             try (PreparedStatement ps = connection.prepareStatement(
                     "CREATE TABLE IF NOT EXISTS " + FILTERED_HOPPER_LOCATIONS_TABLE + " (" +
                             "world_uuid TEXT NOT NULL," +
@@ -75,23 +75,37 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
                             "y INTEGER NOT NULL," +
                             "z INTEGER NOT NULL," +
                             "level INTEGER NOT NULL DEFAULT 1," +
+                            "owner_uuid TEXT," +
                             "PRIMARY KEY (world_uuid, x, y, z)" +
                             ")"
             )) {
                 ps.executeUpdate();
             }
-            // Migration: add level column to existing tables (ignored if already present)
-            try (PreparedStatement ps = connection.prepareStatement(
-                    "ALTER TABLE " + FILTERED_HOPPER_LOCATIONS_TABLE + " ADD COLUMN level INTEGER NOT NULL DEFAULT 1"
-            )) {
-                ps.executeUpdate();
-            } catch (SQLException ignored) {}
-            // Migration: add owner_uuid column (ignored if already present)
-            try (PreparedStatement ps = connection.prepareStatement(
-                    "ALTER TABLE " + FILTERED_HOPPER_LOCATIONS_TABLE + " ADD COLUMN owner_uuid TEXT"
-            )) {
-                ps.executeUpdate();
-            } catch (SQLException ignored) {}
+            // Migration v1→v2: add level column (pre-upgrade-system installs).
+            alterTableAddColumn(connection,
+                    "ALTER TABLE " + FILTERED_HOPPER_LOCATIONS_TABLE + " ADD COLUMN level INTEGER NOT NULL DEFAULT 1");
+            // Migration v2→v3: add owner_uuid column (pre-owner-tracking installs).
+            alterTableAddColumn(connection,
+                    "ALTER TABLE " + FILTERED_HOPPER_LOCATIONS_TABLE + " ADD COLUMN owner_uuid TEXT");
+        }
+    }
+
+    /**
+     * Runs an ALTER TABLE ADD COLUMN statement and silently swallows the error when the
+     * column already exists (SQLite: SQLITE_ERROR / MySQL: ER_DUP_FIELDNAME = 1060).
+     * Any other SQL error is re-thrown so real problems are not hidden.
+     */
+    private static void alterTableAddColumn(Connection connection, String sql) throws SQLException {
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            String msg = e.getMessage() == null ? "" : e.getMessage().toLowerCase(Locale.ROOT);
+            // SQLite: "duplicate column name: ..."
+            // MySQL:  "duplicate column name '...'" (error code 1060)
+            if (msg.contains("duplicate column") || e.getErrorCode() == 1060) {
+                return; // column already exists — expected on upgrades
+            }
+            throw e;
         }
     }
 

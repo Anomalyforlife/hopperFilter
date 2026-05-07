@@ -82,6 +82,14 @@ messages:
   # Messaggi per la configurazione delle opzioni
   option-toggle-feedback: "§e§l» §6{option_name}: {state}"
 
+  # Messaggi upgrade
+  upgrade-success: "§a§l✓ §aHopper upgraded to level §e{level}§a!"
+  upgrade-max-level: "§e§l! §eThis hopper is already at max level!"
+  upgrade-no-money: "§c§l✗ §cNot enough money! You need §e{cost}§c."
+  upgrade-vault-unavailable: "§c§l✗ §cVault is not available on this server."
+  upgrade-error: "§c§l✗ §cUpgrade failed due to a database error."
+  upgrade-locked-slot: "§c§l✗ §cUpgrade the hopper to unlock this filter slot!"
+
 # Messaggi di errore
 errors:
   db-error: "§c§l✗ §cDatabase error: §7{error}"
@@ -99,3 +107,14 @@ commands:
   hopper-not-filtered: "§7§l○ §7This hopper has no filter."
   cleared-via-command: "§a§l✓ §aHopper filter cleared!"
   unknown-subcommand: "§c§l✗ §cUnknown subcommand. §7Try: reload, info, clear, give"
+
+upgrade-gui:
+  button-name: "§e⬆ §6Upgrade Hopper §e⬆"
+  button-level: "§7Level: §e{level}§7/§e{max}"
+  button-slots: "§7Filter Slots: §e{slots}"
+  button-speed: "§7Transfer Speed: §e{ticks}§7 ticks"
+  button-cost: "§7Upgrade Cost: §a${cost}"
+  button-click: "§e§l» §7Click to upgrade!"
+  button-max-level: "§a§l★ §aMAX LEVEL REACHED §a§l★"
+  locked-slot-name: "§8⬛ §7Locked Slot"
+  locked-slot-lore: "§7Upgrade the hopper to unlock more filter slots."

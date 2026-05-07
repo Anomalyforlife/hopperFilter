@@ -2,6 +2,7 @@ package io.github.anomalyforlife.hopperFilter;
 
 import java.io.File;
 import java.util.Locale;
+import java.util.Map;
 
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandMap;
@@ -16,10 +17,14 @@ import io.github.anomalyforlife.hopperFilter.gui.FilterMatchConfigGui;
 import io.github.anomalyforlife.hopperFilter.gui.FilterTagSelectGui;
 import io.github.anomalyforlife.hopperFilter.listeners.HopperFilterListener;
 import io.github.anomalyforlife.hopperFilter.model.FilterMatchOptions;
+import io.github.anomalyforlife.hopperFilter.model.HopperKey;
 import io.github.anomalyforlife.hopperFilter.service.FilterService;
 import io.github.anomalyforlife.hopperFilter.storage.HikariConnectionProvider;
 import io.github.anomalyforlife.hopperFilter.storage.HopperFilterStorage;
 import io.github.anomalyforlife.hopperFilter.storage.JdbcHopperFilterStorage;
+import io.github.anomalyforlife.hopperFilter.upgrade.UpgradeConfig;
+import io.github.anomalyforlife.hopperFilter.upgrade.UpgradeService;
+import io.github.anomalyforlife.hopperFilter.upgrade.VaultEconomyHook;
 import io.github.anomalyforlife.hopperFilter.util.LanguageManager;
 import io.github.anomalyforlife.hopperFilter.util.Messages;
 import net.kyori.adventure.text.Component;
@@ -32,6 +37,7 @@ public final class HopperFilter extends JavaPlugin {
     private HikariConnectionProvider connectionProvider;
     private HopperFilterStorage storage;
     private FilterService filterService;
+    private UpgradeService upgradeService; // null when upgrades disabled or not in special-hopper mode
     private FilterGui gui;
     private FilterMatchConfigGui configGui;
     private FilterTagSelectGui tagSelectGui;
@@ -40,7 +46,6 @@ public final class HopperFilter extends JavaPlugin {
 
     private HopperFilterCommand commandExecutor;
 
-    // FIX #4: il listener viene creato una volta sola e i suoi campi aggiornati al reload
     private HopperFilterListener listener;
     private boolean listenerRegistered = false;
 
@@ -59,8 +64,6 @@ public final class HopperFilter extends JavaPlugin {
             return;
         }
 
-        // FIX #4: registra il listener una volta sola; al reload si aggiorna
-        //         tramite updateListener() senza ri-registrarlo
         if (!listenerRegistered) {
             getServer().getPluginManager().registerEvents(listener, this);
             listenerRegistered = true;
@@ -121,7 +124,6 @@ public final class HopperFilter extends JavaPlugin {
         this.languageManager = new LanguageManager(this);
         this.messages = new Messages(languageManager.getPrefix());
 
-        // FIX #5: chiudi il vecchio provider prima di crearne uno nuovo
         if (connectionProvider != null) {
             connectionProvider.close();
             connectionProvider = null;
@@ -151,10 +153,29 @@ public final class HopperFilter extends JavaPlugin {
             getConfig().getStringList("filtered-hopper.lore")
         );
 
+        // Upgrades: only in special-hopper mode (levels are stored per-hopper in DB)
+        UpgradeConfig upgradeConfig = UpgradeConfig.fromSection(getConfig().getConfigurationSection("upgrades"));
+        if (specialMode && upgradeConfig.isEnabled()) {
+            VaultEconomyHook economy = loadVaultEconomy();
+            if (upgradeConfig.isVaultRequired() && economy == null) {
+                getLogger().warning("[HopperFilter] Vault not found — upgrade costs will be skipped.");
+            }
+            this.upgradeService = new UpgradeService(storage, upgradeConfig, economy);
+            Map<HopperKey, Integer> levels = storage.loadFilteredHopperLocations();
+            upgradeService.loadLevels(levels);
+        } else {
+            this.upgradeService = null;
+            if (!specialMode && upgradeConfig.isEnabled()) {
+                getLogger().info("[HopperFilter] Upgrades require require-special-hopper=true; skipping upgrade system.");
+            }
+        }
+
         Component title = LEGACY.deserialize(languageManager.getMainGuiTitle());
         this.gui = new FilterGui(
                 filterService,
+                upgradeService,
                 messages,
+                languageManager,
                 title,
                 languageManager.getMsgAdded(),
                 languageManager.getMsgAddedWarning(),
@@ -165,14 +186,15 @@ public final class HopperFilter extends JavaPlugin {
         this.configGui = new FilterMatchConfigGui(filterService, messages, languageManager);
         this.tagSelectGui = new FilterTagSelectGui(filterService, configGui, messages, languageManager);
 
-        // FIX #4: al primo avvio crea il listener; al reload aggiorna i riferimenti interni
         if (listener == null) {
             listener = new HopperFilterListener(
                     filterService,
+                    upgradeService,
                     gui,
                     configGui,
                     tagSelectGui,
                     messages,
+                    languageManager,
                     getConfig().getInt("tnt.blockedRadius", 5),
                     languageManager.getMsgCleared(),
                     languageManager.getMsgMustSneakToBreak(),
@@ -182,10 +204,12 @@ public final class HopperFilter extends JavaPlugin {
         } else {
             listener.update(
                     filterService,
+                    upgradeService,
                     gui,
                     configGui,
                     tagSelectGui,
                     messages,
+                    languageManager,
                     getConfig().getInt("tnt.blockedRadius", 5),
                     languageManager.getMsgCleared(),
                     languageManager.getMsgMustSneakToBreak(),
@@ -194,7 +218,6 @@ public final class HopperFilter extends JavaPlugin {
             );
         }
 
-        // Keep command behavior in sync with reloads.
         if (commandExecutor != null) {
             commandExecutor.update(
                     filterService,
@@ -208,7 +231,18 @@ public final class HopperFilter extends JavaPlugin {
         }
     }
 
-    // FIX #5: usa sempre HikariCP, sia per SQLite che per MySQL
+    private VaultEconomyHook loadVaultEconomy() {
+        if (getServer().getPluginManager().getPlugin("Vault") == null) {
+            return null;
+        }
+        try {
+            return VaultEconomyHook.load(getServer());
+        } catch (Exception | LinkageError e) {
+            getLogger().warning("[HopperFilter] Vault present but Economy class unavailable — upgrade costs disabled. (" + e + ")");
+            return null;
+        }
+    }
+
     private HikariConnectionProvider createConnectionProvider() {
         String type = getConfig().getString("storage.type", "sqlite");
         type = type == null ? "sqlite" : type.toLowerCase(Locale.ROOT);
@@ -237,7 +271,6 @@ public final class HopperFilter extends JavaPlugin {
             File dbFile = new File(getDataFolder(), getConfig().getString("storage.sqlite.file", "filters.db"));
             config.setJdbcUrl("jdbc:sqlite:" + dbFile.getAbsolutePath());
             config.setDriverClassName("org.sqlite.JDBC");
-            // SQLite non supporta connessioni concorrenti: forza pool size a 1
             config.setMaximumPoolSize(1);
         }
 
@@ -245,7 +278,6 @@ public final class HopperFilter extends JavaPlugin {
         int minIdle = getConfig().getInt("storage.pool.minimumIdle", 2);
         long connTimeout = getConfig().getLong("storage.pool.connectionTimeoutMillis", 10000L);
 
-        // Per SQLite il pool size è già stato forzato a 1 sopra; per MySQL usa la config
         if (!"sqlite".equals(type)) {
             config.setMaximumPoolSize(maxPool);
             config.setMinimumIdle(minIdle);
@@ -293,7 +325,6 @@ public final class HopperFilter extends JavaPlugin {
             storage.close();
             storage = null;
         }
-        // FIX #5: chiudi il pool HikariCP alla disabilitazione
         if (connectionProvider != null) {
             connectionProvider.close();
             connectionProvider = null;

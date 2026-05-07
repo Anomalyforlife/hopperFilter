@@ -1,6 +1,7 @@
 package io.github.anomalyforlife.hopperFilter.listeners;
 
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 import org.bukkit.GameMode;
@@ -32,40 +33,50 @@ import io.github.anomalyforlife.hopperFilter.gui.FilterTagSelectGuiHolder;
 import io.github.anomalyforlife.hopperFilter.model.FilterMatchOptions;
 import io.github.anomalyforlife.hopperFilter.model.HopperKey;
 import io.github.anomalyforlife.hopperFilter.service.FilterService;
+import io.github.anomalyforlife.hopperFilter.upgrade.UpgradeService;
 import io.github.anomalyforlife.hopperFilter.util.ItemMatch;
+import io.github.anomalyforlife.hopperFilter.util.LanguageManager;
 import io.github.anomalyforlife.hopperFilter.util.Messages;
 
 public final class HopperFilterListener implements Listener {
 
     private static final Logger LOGGER = Logger.getLogger(HopperFilterListener.class.getName());
 
-    // FIX #4: campi volatile per permettere l'aggiornamento atomico al reload
     private volatile FilterService filterService;
     private volatile FilterGui gui;
     private volatile FilterMatchConfigGui configGui;
     private volatile FilterTagSelectGui tagSelectGui;
     private volatile Messages messages;
+    private volatile LanguageManager lang;
+    private volatile UpgradeService upgradeService; // nullable
     private volatile int tntBlockedRadius;
     private volatile String msgCleared;
     private volatile String msgMustSneakToBreak;
     private volatile String msgMustHaveBreakPerm;
     private volatile String msgTooClose;
 
+    /** Per-hopper last-transfer timestamp (ms) for speed throttling. */
+    private final ConcurrentHashMap<HopperKey, Long> lastTransferMs = new ConcurrentHashMap<>();
+
     public HopperFilterListener(FilterService filterService,
-                               FilterGui gui,
-                               FilterMatchConfigGui configGui,
-                               FilterTagSelectGui tagSelectGui,
-                               Messages messages,
-                               int tntBlockedRadius,
-                               String msgCleared,
-                               String msgMustSneakToBreak,
-                               String msgMustHaveBreakPerm,
-                               String msgTooClose) {
+                                UpgradeService upgradeService,
+                                FilterGui gui,
+                                FilterMatchConfigGui configGui,
+                                FilterTagSelectGui tagSelectGui,
+                                Messages messages,
+                                LanguageManager lang,
+                                int tntBlockedRadius,
+                                String msgCleared,
+                                String msgMustSneakToBreak,
+                                String msgMustHaveBreakPerm,
+                                String msgTooClose) {
         this.filterService = filterService;
+        this.upgradeService = upgradeService;
         this.gui = gui;
         this.configGui = configGui;
         this.tagSelectGui = tagSelectGui;
         this.messages = messages;
+        this.lang = lang;
         this.tntBlockedRadius = tntBlockedRadius;
         this.msgCleared = msgCleared;
         this.msgMustSneakToBreak = msgMustSneakToBreak;
@@ -73,25 +84,25 @@ public final class HopperFilterListener implements Listener {
         this.msgTooClose = msgTooClose;
     }
 
-    /**
-     * FIX #4: aggiorna i riferimenti interni dopo un /hf reload,
-     * senza dover ri-registrare il listener con Bukkit.
-     */
     public synchronized void update(FilterService filterService,
+                                    UpgradeService upgradeService,
                                     FilterGui gui,
                                     FilterMatchConfigGui configGui,
                                     FilterTagSelectGui tagSelectGui,
                                     Messages messages,
+                                    LanguageManager lang,
                                     int tntBlockedRadius,
                                     String msgCleared,
                                     String msgMustSneakToBreak,
                                     String msgMustHaveBreakPerm,
                                     String msgTooClose) {
         this.filterService = filterService;
+        this.upgradeService = upgradeService;
         this.gui = gui;
         this.configGui = configGui;
         this.tagSelectGui = tagSelectGui;
         this.messages = messages;
+        this.lang = lang;
         this.tntBlockedRadius = tntBlockedRadius;
         this.msgCleared = msgCleared;
         this.msgMustSneakToBreak = msgMustSneakToBreak;
@@ -124,30 +135,25 @@ public final class HopperFilterListener implements Listener {
         if (!isActive(compiled)) {
             return true;
         }
-        
-        // BUG FIX #11: Implementa logica blacklist/whitelist
-        // Se l'item matcha QUALSIASI blacklist item, viene bloccato
+
         for (CompiledEntry entry : compiled) {
             if (entry.options().isBlacklisted() && ItemMatch.matches(movingItem, entry.filterItem(), entry.options())) {
-                return false;  // Bloccato dalla blacklist
+                return false;
             }
         }
-        
-        // Se l'item matcha QUALSIASI whitelist item, è consentito
+
         for (CompiledEntry entry : compiled) {
             if (!entry.options().isBlacklisted() && ItemMatch.matches(movingItem, entry.filterItem(), entry.options())) {
-                return true;  // Consentito dalla whitelist
+                return true;
             }
         }
-        
-        // Se esiste almeno un item in whitelist e non matcha nessuno, blocca
+
         for (CompiledEntry entry : compiled) {
             if (!entry.options().isBlacklisted()) {
-                return false;  // Esiste whitelist, ma non matcha niente
+                return false;
             }
         }
-        
-        // Se ci sono solo blacklist items e non matcha nessuno, consenti
+
         return true;
     }
 
@@ -193,6 +199,13 @@ public final class HopperFilterListener implements Listener {
         return false;
     }
 
+    /** Returns the speed interval in ms for the given hopper, or -1 if no throttling. */
+    private long speedIntervalMs(HopperKey key) {
+        UpgradeService us = upgradeService;
+        if (us == null || !us.getConfig().isEnabled()) return -1;
+        return (long) us.getLevelData(key).transferSpeedTicks() * 50L;
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onInventoryMoveItem(InventoryMoveItemEvent event) {
         Inventory destination = event.getDestination();
@@ -203,19 +216,30 @@ public final class HopperFilterListener implements Listener {
         try {
             HopperKey key = HopperKey.fromLocation(hopperHolder.getLocation());
 
-            // Special-hopper mode: ignore non-special hoppers entirely.
             if (!filterService.isFilteredHopper(key)) {
                 return;
+            }
+
+            // Speed throttle
+            long interval = speedIntervalMs(key);
+            long nowMs = System.currentTimeMillis();
+            if (interval > 0) {
+                if (nowMs - lastTransferMs.getOrDefault(key, 0L) < interval) {
+                    event.setCancelled(true);
+                    return;
+                }
             }
 
             ItemStack[] filter = filterService.getOrLoadView(key);
             List<CompiledEntry> compiled = compileFilter(filter);
             if (!isActive(compiled)) {
+                if (interval > 0) lastTransferMs.put(key, nowMs);
                 return;
             }
 
             ItemStack attempted = event.getItem();
             if (allows(compiled, attempted)) {
+                if (interval > 0) lastTransferMs.put(key, nowMs);
                 return;
             }
 
@@ -226,7 +250,6 @@ public final class HopperFilterListener implements Listener {
                 return;
             }
 
-            // BUG FIX #10: Re-verify the slot is still valid (race condition guard)
             ItemStack sourceItem = source.getItem(sourceSlot);
             if (sourceItem == null || sourceItem.getType().isAir()) {
                 event.setCancelled(true);
@@ -240,9 +263,7 @@ public final class HopperFilterListener implements Listener {
                 return;
             }
 
-            // BUG FIX #10: Clone before modifying to avoid race conditions
             ItemStack clonedSourceItem = sourceItem.clone();
-            
             event.setCancelled(true);
 
             int newAmount = clonedSourceItem.getAmount() - 1;
@@ -254,8 +275,8 @@ public final class HopperFilterListener implements Listener {
             }
 
             destination.addItem(one);
+            if (interval > 0) lastTransferMs.put(key, nowMs);
         } catch (Exception e) {
-            // FIX #2: logga invece di ingoiare silenziosamente
             LOGGER.log(java.util.logging.Level.WARNING, "[HopperFilter] Error in InventoryMoveItemEvent", e);
         }
     }
@@ -270,19 +291,30 @@ public final class HopperFilterListener implements Listener {
         try {
             HopperKey key = HopperKey.fromLocation(hopperHolder.getLocation());
 
-            // Special-hopper mode: ignore non-special hoppers entirely.
             if (!filterService.isFilteredHopper(key)) {
                 return;
+            }
+
+            // Speed throttle
+            long interval = speedIntervalMs(key);
+            long nowMs = System.currentTimeMillis();
+            if (interval > 0) {
+                if (nowMs - lastTransferMs.getOrDefault(key, 0L) < interval) {
+                    event.setCancelled(true);
+                    return;
+                }
             }
 
             ItemStack[] filter = filterService.getOrLoadView(key);
             List<CompiledEntry> compiled = compileFilter(filter);
             if (!isActive(compiled)) {
+                if (interval > 0) lastTransferMs.put(key, nowMs);
                 return;
             }
 
             ItemStack attempted = event.getItem() == null ? null : event.getItem().getItemStack();
             if (allows(compiled, attempted)) {
+                if (interval > 0) lastTransferMs.put(key, nowMs);
                 return;
             }
 
@@ -320,7 +352,6 @@ public final class HopperFilterListener implements Listener {
         try {
             HopperKey key = HopperKey.fromLocation(block.getLocation());
 
-            // Modalità hopper speciali: se non è un filtered hopper, lascia aprire la GUI vanilla.
             if (filterService.isSpecialHopperRequired() && !filterService.isFilteredHopper(key)) {
                 return;
             }
@@ -339,7 +370,6 @@ public final class HopperFilterListener implements Listener {
             return;
         }
 
-        // Spec: if (!requireSpecialHopper) return;
         if (!filterService.isSpecialHopperRequired()) {
             return;
         }
@@ -352,8 +382,10 @@ public final class HopperFilterListener implements Listener {
         try {
             HopperKey key = HopperKey.fromLocation(event.getBlockPlaced().getLocation());
             filterService.registerFilteredHopper(key);
+            if (upgradeService != null) {
+                upgradeService.registerHopper(key);
+            }
         } catch (Exception e) {
-            // If we can't persist it, cancel placement to avoid an untracked special hopper.
             event.setCancelled(true);
             messages.send(event.getPlayer(), "§cDB error: " + e.getMessage());
             LOGGER.log(java.util.logging.Level.SEVERE, "[HopperFilter] Failed to register filtered hopper location", e);
@@ -369,7 +401,6 @@ public final class HopperFilterListener implements Listener {
             return;
         }
 
-        // FIX #8: slot negativo (es. drag fuori dall'inventario) — ignora subito
         if (event.getSlot() < 0) {
             return;
         }
@@ -378,8 +409,32 @@ public final class HopperFilterListener implements Listener {
         if (top.getHolder() instanceof FilterGuiHolder holder) {
             event.setCancelled(true);
             try {
+                int slot = event.getSlot();
+                HopperKey key = holder.key();
+
+                // Upgrade button (last slot, upgrade mode only)
+                int upgradeSlot = gui.upgradeButtonSlot();
+                if (upgradeSlot >= 0 && slot == upgradeSlot
+                        && event.getClickedInventory() != null
+                        && event.getClickedInventory().equals(top)) {
+                    if (!player.hasPermission("hopperfilter.upgrade")) {
+                        messages.actionBar(player, "§c§l✗ §cYou don't have permission to upgrade hoppers.");
+                        return;
+                    }
+                    handleUpgrade(player, key, top);
+                    return;
+                }
+
+                // Locked slot
+                if (gui.isLockedSlot(key, slot)
+                        && event.getClickedInventory() != null
+                        && event.getClickedInventory().equals(top)) {
+                    messages.actionBar(player, lang.getMsgUpgradeLockedSlot());
+                    return;
+                }
+
                 if (event.getClick() == ClickType.LEFT && event.getClickedInventory() != null && event.getClickedInventory().equals(top)) {
-                    configGui.open(player, holder.key(), event.getSlot());
+                    configGui.open(player, key, slot);
                     return;
                 }
 
@@ -390,7 +445,6 @@ public final class HopperFilterListener implements Listener {
                 }
 
                 if (event.getClick().isRightClick() && event.getClickedInventory() != null && event.getClickedInventory().equals(top)) {
-                    int slot = event.getSlot();
                     gui.removeAt(player, top, slot);
                 }
             } catch (Exception e) {
@@ -423,6 +477,32 @@ public final class HopperFilterListener implements Listener {
         }
     }
 
+    private void handleUpgrade(Player player, HopperKey key, Inventory currentGui) {
+        UpgradeService us = upgradeService;
+        if (us == null) return;
+
+        UpgradeService.UpgradeResult result = us.tryUpgrade(player, key);
+        switch (result) {
+            case SUCCESS -> {
+                messages.actionBar(player, lang.getMsgUpgradeSuccess(us.getLevel(key)));
+                try {
+                    gui.open(player, key); // Refresh GUI to show new level
+                } catch (Exception e) {
+                    LOGGER.warning("[HopperFilter] Error refreshing GUI after upgrade: " + e.getMessage());
+                }
+            }
+            case MAX_LEVEL -> messages.actionBar(player, lang.getMsgUpgradeMaxLevel());
+            case NOT_ENOUGH_MONEY -> {
+                int next = us.getLevel(key) + 1;
+                double cost = us.getConfig().getLevelData(next).cost();
+                messages.actionBar(player, lang.getMsgUpgradeNoMoney(cost));
+            }
+            case VAULT_NOT_AVAILABLE -> messages.actionBar(player, lang.getMsgUpgradeVaultUnavailable());
+            case DB_ERROR -> messages.actionBar(player, lang.getMsgUpgradeError());
+            default -> {}
+        }
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
         Block block = event.getBlock();
@@ -437,16 +517,13 @@ public final class HopperFilterListener implements Listener {
             boolean specialMode = filterService.isSpecialHopperRequired();
             boolean isSpecialFilteredHopper = specialMode && filterService.isFilteredHopper(key);
 
-            // Special-hopper mode: ignore non-special hoppers entirely.
             if (specialMode && !isSpecialFilteredHopper) {
                 return;
             }
 
             boolean hasAny = filterService.hasAny(key);
 
-            // Keep the existing behavior: require sneak+perm only if the hopper has an active filter.
             if (hasAny) {
-                // FIX #1: "hopperfilter.break" — coerente con plugin.yml (era "hopperfilter.admin.break")
                 if (!player.hasPermission("hopperfilter.break")) {
                     messages.actionBar(player, msgMustHaveBreakPerm);
                     event.setCancelled(true);
@@ -459,11 +536,9 @@ public final class HopperFilterListener implements Listener {
                 }
             }
 
-            // If this is a special filtered hopper, preserve its identity on drop.
             if (isSpecialFilteredHopper) {
                 event.setDropItems(false);
-                
-                // BUG FIX #9: Drop the hopper contents manually before dropping the special hopper item
+
                 try {
                     org.bukkit.block.BlockState state = block.getState();
                     if (state instanceof Hopper hopper) {
@@ -476,13 +551,11 @@ public final class HopperFilterListener implements Listener {
                 } catch (Exception e) {
                     LOGGER.log(java.util.logging.Level.WARNING, "[HopperFilter] Error dropping hopper contents", e);
                 }
-                
+
                 if (player.getGameMode() != GameMode.CREATIVE) {
-                    // BUG FIX #12: Crea un hopper pulito senza metadata di vanilla per evitare problemi di stacking
                     ItemStack hopper = new ItemStack(Material.HOPPER, 1);
                     ItemMeta meta = hopper.getItemMeta();
                     if (meta != null) {
-                        // Copia i metadata dal special hopper template
                         ItemStack template = filterService.createSpecialHopperItem(1);
                         ItemMeta templateMeta = template.getItemMeta();
                         if (templateMeta != null) {
@@ -492,7 +565,6 @@ public final class HopperFilterListener implements Listener {
                             if (templateMeta.hasLore()) {
                                 meta.lore(templateMeta.lore());
                             }
-                            // Copia il PDC marker
                             meta.getPersistentDataContainer().set(
                                 io.github.anomalyforlife.hopperFilter.FilteredHopperItem.KEY,
                                 org.bukkit.persistence.PersistentDataType.BYTE,
@@ -510,10 +582,14 @@ public final class HopperFilterListener implements Listener {
                 messages.actionBar(player, msgCleared);
             }
 
-            // Special-hopper mode: remove from the location table only when breaking is allowed.
             if (specialMode) {
                 filterService.unregisterFilteredHopper(key);
+                if (upgradeService != null) {
+                    upgradeService.unregisterHopper(key);
+                }
             }
+
+            lastTransferMs.remove(key);
         } catch (Exception e) {
             messages.send(player, "§cDB error: " + e.getMessage());
             event.setCancelled(true);
@@ -523,9 +599,6 @@ public final class HopperFilterListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onExplode(EntityExplodeEvent event) {
-        // FIX #3: rimuovi solo gli hopper filtrati dalla blockList invece di
-        //         cancellare l'intera esplosione. I blocchi circostanti vengono
-        //         distrutti normalmente.
         try {
             event.blockList().removeIf(block -> {
                 if (block.getType() != Material.HOPPER) {
@@ -539,13 +612,11 @@ public final class HopperFilterListener implements Listener {
                     }
                     return filterService.hasAny(key);
                 } catch (Exception e) {
-                    // FIX #2: logga l'errore; proteggi il blocco per sicurezza
                     LOGGER.log(java.util.logging.Level.WARNING, "[HopperFilter] Error checking hopper during explosion", e);
                     return true;
                 }
             });
         } catch (Exception e) {
-            // FIX #2: logga invece di ingoiare silenziosamente
             LOGGER.log(java.util.logging.Level.WARNING, "[HopperFilter] Error in EntityExplodeEvent", e);
         }
     }
@@ -581,7 +652,6 @@ public final class HopperFilterListener implements Listener {
                 }
             }
         } catch (Exception e) {
-            // FIX #2: logga invece di ingoiare silenziosamente
             LOGGER.log(java.util.logging.Level.WARNING, "[HopperFilter] Error in BlockPlaceEvent (TNT check)", e);
         }
     }

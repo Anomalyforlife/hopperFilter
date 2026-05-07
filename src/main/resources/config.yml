@@ -24,8 +24,66 @@ storage:
 
 filter:
   # Filter capacity. Must be a multiple of 9 (rows) and <= 54.
-  # Default 54 (6 rows).
+  # Default 54 (6 rows). One slot is reserved for the upgrade button when upgrades are enabled.
   size: 54
+
+upgrades:
+  # Enable the per-hopper upgrade system.
+  # Only works when filtered-hopper.require-special-hopper is true.
+  enabled: true
+
+  # Require Vault economy to charge for upgrades.
+  # If false, upgrades are free (no currency is charged).
+  vault-required: true
+
+  # Maximum upgrade level (levels are defined below).
+  max-level: 10
+
+  # Per-level data. Each entry defines what that level provides.
+  #   cost                  — amount charged to reach this level (level 1 = default, no cost).
+  #   filter-slots          — how many filter slots are active at this level.
+  #   transfer-speed-ticks  — ticks between item transfers (vanilla = 8; level 1 default = 16 = half speed).
+  levels:
+    1:
+      cost: 0
+      filter-slots: 3
+      transfer-speed-ticks: 16
+    2:
+      cost: 1000
+      filter-slots: 5
+      transfer-speed-ticks: 14
+    3:
+      cost: 2000
+      filter-slots: 7
+      transfer-speed-ticks: 11
+    4:
+      cost: 3000
+      filter-slots: 10
+      transfer-speed-ticks: 9
+    5:
+      cost: 4000
+      filter-slots: 12
+      transfer-speed-ticks: 8
+    6:
+      cost: 5000
+      filter-slots: 18
+      transfer-speed-ticks: 8
+    7:
+      cost: 6000
+      filter-slots: 25
+      transfer-speed-ticks: 8
+    8:
+      cost: 7000
+      filter-slots: 32
+      transfer-speed-ticks: 8
+    9:
+      cost: 8000
+      filter-slots: 43
+      transfer-speed-ticks: 6
+    10:
+      cost: 10000
+      filter-slots: 53
+      transfer-speed-ticks: 4
 
 tnt:
   blockedRadius: 5

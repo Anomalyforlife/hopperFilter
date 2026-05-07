@@ -55,6 +55,25 @@ public final class LanguageManager {
     private final String tagSelectSelectedLine;
     private final String tagSelectClickToSelectLine;
 
+    // Upgrade messages
+    private final String msgUpgradeSuccess;
+    private final String msgUpgradeMaxLevel;
+    private final String msgUpgradeNoMoney;
+    private final String msgUpgradeVaultUnavailable;
+    private final String msgUpgradeError;
+    private final String msgUpgradeLockedSlot;
+
+    // Upgrade GUI texts
+    private final String upgradeButtonName;
+    private final String upgradeButtonLevel;
+    private final String upgradeButtonSlots;
+    private final String upgradeButtonSpeed;
+    private final String upgradeButtonCost;
+    private final String upgradeButtonClick;
+    private final String upgradeButtonMaxLevel;
+    private final String upgradeLockedSlotName;
+    private final String upgradeLockedSlotLore;
+
     public LanguageManager(Plugin plugin) {
         Objects.requireNonNull(plugin, "plugin");
         
@@ -139,6 +158,23 @@ public final class LanguageManager {
         this.tagSelectItemLine = config.getString("gui.tag-select.item-line", "§7Item: §f{item}");
         this.tagSelectSelectedLine = config.getString("gui.tag-select.selected-line", "§aSelected");
         this.tagSelectClickToSelectLine = config.getString("gui.tag-select.click-to-select-line", "§7Click to select");
+
+        this.msgUpgradeSuccess = config.getString("messages.upgrade-success", "§a§l✓ §aHopper upgraded to level §e{level}§a!");
+        this.msgUpgradeMaxLevel = config.getString("messages.upgrade-max-level", "§e§l! §eThis hopper is already at max level!");
+        this.msgUpgradeNoMoney = config.getString("messages.upgrade-no-money", "§c§l✗ §cNot enough money! You need §e{cost}§c.");
+        this.msgUpgradeVaultUnavailable = config.getString("messages.upgrade-vault-unavailable", "§c§l✗ §cVault is not available on this server.");
+        this.msgUpgradeError = config.getString("messages.upgrade-error", "§c§l✗ §cUpgrade failed due to a database error.");
+        this.msgUpgradeLockedSlot = config.getString("messages.upgrade-locked-slot", "§c§l✗ §cUpgrade the hopper to unlock this filter slot!");
+
+        this.upgradeButtonName = config.getString("upgrade-gui.button-name", "§e⬆ §6Upgrade Hopper §e⬆");
+        this.upgradeButtonLevel = config.getString("upgrade-gui.button-level", "§7Level: §e{level}§7/§e{max}");
+        this.upgradeButtonSlots = config.getString("upgrade-gui.button-slots", "§7Filter Slots: §e{slots}");
+        this.upgradeButtonSpeed = config.getString("upgrade-gui.button-speed", "§7Transfer Speed: §e{ticks}§7 ticks");
+        this.upgradeButtonCost = config.getString("upgrade-gui.button-cost", "§7Upgrade Cost: §a${cost}");
+        this.upgradeButtonClick = config.getString("upgrade-gui.button-click", "§e§l» §7Click to upgrade!");
+        this.upgradeButtonMaxLevel = config.getString("upgrade-gui.button-max-level", "§a§l★ §aMAX LEVEL REACHED §a§l★");
+        this.upgradeLockedSlotName = config.getString("upgrade-gui.locked-slot-name", "§8⬛ §7Locked Slot");
+        this.upgradeLockedSlotLore = config.getString("upgrade-gui.locked-slot-lore", "§7Upgrade the hopper to unlock more filter slots.");
     }
 
     public String getPrefix() {
@@ -305,6 +341,41 @@ public final class LanguageManager {
 
     public String getTagSelectClickToSelectLine() {
         return tagSelectClickToSelectLine;
+    }
+
+    public String getMsgUpgradeSuccess(int level) {
+        return msgUpgradeSuccess.replace("{level}", String.valueOf(level));
+    }
+
+    public String getMsgUpgradeMaxLevel() { return msgUpgradeMaxLevel; }
+    public String getMsgUpgradeVaultUnavailable() { return msgUpgradeVaultUnavailable; }
+    public String getMsgUpgradeError() { return msgUpgradeError; }
+    public String getMsgUpgradeLockedSlot() { return msgUpgradeLockedSlot; }
+
+    public String getMsgUpgradeNoMoney(double cost) {
+        return msgUpgradeNoMoney.replace("{cost}", String.format("%,.0f", cost));
+    }
+
+    public String getUpgradeButtonName() { return upgradeButtonName; }
+    public String getUpgradeButtonClick() { return upgradeButtonClick; }
+    public String getUpgradeButtonMaxLevel() { return upgradeButtonMaxLevel; }
+    public String getUpgradeLockedSlotName() { return upgradeLockedSlotName; }
+    public String getUpgradeLockedSlotLore() { return upgradeLockedSlotLore; }
+
+    public String getUpgradeButtonLevel(int level, int max) {
+        return upgradeButtonLevel.replace("{level}", String.valueOf(level)).replace("{max}", String.valueOf(max));
+    }
+
+    public String getUpgradeButtonSlots(int slots) {
+        return upgradeButtonSlots.replace("{slots}", String.valueOf(slots));
+    }
+
+    public String getUpgradeButtonSpeed(int ticks) {
+        return upgradeButtonSpeed.replace("{ticks}", String.valueOf(ticks));
+    }
+
+    public String getUpgradeButtonCost(double cost) {
+        return upgradeButtonCost.replace("{cost}", String.format("%,.0f", cost));
     }
 
     public static final class OptionTexts {

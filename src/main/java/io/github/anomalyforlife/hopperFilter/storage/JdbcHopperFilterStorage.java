@@ -10,11 +10,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
 
@@ -67,26 +65,36 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
     @Override
     public void initFilteredHopperLocations() throws SQLException {
         try (Connection connection = connectionProvider.getConnection()) {
+            // Create table with level column for new installs
             try (PreparedStatement ps = connection.prepareStatement(
                     "CREATE TABLE IF NOT EXISTS " + FILTERED_HOPPER_LOCATIONS_TABLE + " (" +
                             "world_uuid TEXT NOT NULL," +
                             "x INTEGER NOT NULL," +
                             "y INTEGER NOT NULL," +
                             "z INTEGER NOT NULL," +
+                            "level INTEGER NOT NULL DEFAULT 1," +
                             "PRIMARY KEY (world_uuid, x, y, z)" +
                             ")"
             )) {
                 ps.executeUpdate();
             }
+            // Migration: add level column to existing tables (ignored if already present)
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "ALTER TABLE " + FILTERED_HOPPER_LOCATIONS_TABLE + " ADD COLUMN level INTEGER NOT NULL DEFAULT 1"
+            )) {
+                ps.executeUpdate();
+            } catch (SQLException ignored) {
+                // Column already exists — safe to ignore
+            }
         }
     }
 
     @Override
-    public Set<HopperKey> loadFilteredHopperLocations() throws SQLException {
-        Set<HopperKey> out = new HashSet<>();
+    public Map<HopperKey, Integer> loadFilteredHopperLocations() throws SQLException {
+        Map<HopperKey, Integer> out = new java.util.HashMap<>();
         try (Connection connection = connectionProvider.getConnection()) {
             try (PreparedStatement ps = connection.prepareStatement(
-                    "SELECT world_uuid, x, y, z FROM " + FILTERED_HOPPER_LOCATIONS_TABLE
+                    "SELECT world_uuid, x, y, z, level FROM " + FILTERED_HOPPER_LOCATIONS_TABLE
             )) {
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
@@ -94,6 +102,8 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
                         int x = rs.getInt(2);
                         int y = rs.getInt(3);
                         int z = rs.getInt(4);
+                        int level = rs.getInt(5);
+                        if (level < 1) level = 1;
 
                         if (world == null || world.isBlank()) {
                             continue;
@@ -101,7 +111,7 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
 
                         try {
                             UUID uuid = UUID.fromString(world);
-                            out.add(new HopperKey(uuid, x, y, z));
+                            out.put(new HopperKey(uuid, x, y, z), level);
                         } catch (IllegalArgumentException ignored) {
                         }
                     }
@@ -109,6 +119,23 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
             }
         }
         return out;
+    }
+
+    @Override
+    public void saveHopperLevel(HopperKey key, int level) throws SQLException {
+        try (Connection connection = connectionProvider.getConnection()) {
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "UPDATE " + FILTERED_HOPPER_LOCATIONS_TABLE +
+                    " SET level=? WHERE world_uuid=? AND x=? AND y=? AND z=?"
+            )) {
+                ps.setInt(1, level);
+                ps.setString(2, key.worldUuid().toString());
+                ps.setInt(3, key.x());
+                ps.setInt(4, key.y());
+                ps.setInt(5, key.z());
+                ps.executeUpdate();
+            }
+        }
     }
 
     @Override

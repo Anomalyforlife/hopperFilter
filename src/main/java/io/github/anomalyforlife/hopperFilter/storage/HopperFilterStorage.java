@@ -14,13 +14,13 @@ public interface HopperFilterStorage extends AutoCloseable {
     void initFilteredHopperLocations() throws Exception;
 
     /**
-     * Loads all persisted special filtered hopper locations.
+     * Loads all persisted special filtered hopper locations together with their upgrade level.
      * Only required when special-hopper mode is enabled.
      */
-    java.util.Set<HopperKey> loadFilteredHopperLocations() throws Exception;
+    java.util.Map<HopperKey, Integer> loadFilteredHopperLocations() throws Exception;
 
     /**
-     * Persists a location as a special filtered hopper.
+     * Persists a location as a special filtered hopper (default level 1).
      */
     void addFilteredHopperLocation(HopperKey key) throws Exception;
 
@@ -28,6 +28,11 @@ public interface HopperFilterStorage extends AutoCloseable {
      * Removes a location from the special filtered hopper table.
      */
     void removeFilteredHopperLocation(HopperKey key) throws Exception;
+
+    /**
+     * Updates the upgrade level for an existing special hopper location.
+     */
+    void saveHopperLevel(HopperKey key, int level) throws Exception;
 
     ItemStack[] loadFilter(HopperKey key, int size) throws Exception;
 

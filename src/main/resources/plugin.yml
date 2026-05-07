@@ -4,6 +4,7 @@ main: io.github.anomalyforlife.hopperFilter.HopperFilter
 api-version: '1.21'
 load: STARTUP
 authors: [ Anomalyforlife ]
+soft-depend: [ Vault ]
 website: italiarevenge.com
 description: A simple plugin that allows you to filter items that can be inserted into hoppers.
 
@@ -39,4 +40,7 @@ permissions:
     default: op
   hopperfilter.admin.give:
     description: Allows giving special Filtered Hoppers via command
+    default: op
+  hopperfilter.upgrade:
+    description: Allows upgrading filtered hoppers via the GUI
     default: op

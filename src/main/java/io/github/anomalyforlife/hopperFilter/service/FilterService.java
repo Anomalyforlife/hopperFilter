@@ -4,7 +4,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.Material;
@@ -60,9 +59,9 @@ public final class FilterService {
         this.specialHopperRequired = specialHopperRequired;
         if (specialHopperRequired) {
             storage.initFilteredHopperLocations();
-            Set<HopperKey> keys = storage.loadFilteredHopperLocations();
-            this.filteredHopperCache = new ConcurrentHashMap<>(Math.max(16, keys.size() * 2));
-            for (HopperKey key : keys) {
+            Map<HopperKey, Integer> hopperData = storage.loadFilteredHopperLocations();
+            this.filteredHopperCache = new ConcurrentHashMap<>(Math.max(16, hopperData.size() * 2));
+            for (HopperKey key : hopperData.keySet()) {
                 if (key == null) continue;
                 this.filteredHopperCache.put(key, Boolean.TRUE);
             }

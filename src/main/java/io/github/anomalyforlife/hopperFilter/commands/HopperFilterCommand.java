@@ -207,7 +207,6 @@ public final class HopperFilterCommand implements CommandExecutor {
                     targetUuid = online.getUniqueId();
                     targetName = online.getName();
                 } else {
-                    @SuppressWarnings("deprecation")
                     OfflinePlayer op = Bukkit.getOfflinePlayer(args[1]);
                     if (!op.hasPlayedBefore()) {
                         messages.send(sender, "§cPlayer not found.");

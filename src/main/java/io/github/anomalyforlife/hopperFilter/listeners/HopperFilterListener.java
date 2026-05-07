@@ -8,6 +8,7 @@ import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.Hopper;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -49,6 +50,7 @@ public final class HopperFilterListener implements Listener {
     private volatile Messages messages;
     private volatile LanguageManager lang;
     private volatile UpgradeService upgradeService; // nullable
+    private volatile Plugin plugin;
     private volatile int tntBlockedRadius;
     private volatile String msgCleared;
     private volatile String msgMustSneakToBreak;
@@ -60,6 +62,7 @@ public final class HopperFilterListener implements Listener {
 
     public HopperFilterListener(FilterService filterService,
                                 UpgradeService upgradeService,
+                                Plugin plugin,
                                 FilterGui gui,
                                 FilterMatchConfigGui configGui,
                                 FilterTagSelectGui tagSelectGui,
@@ -72,6 +75,7 @@ public final class HopperFilterListener implements Listener {
                                 String msgTooClose) {
         this.filterService = filterService;
         this.upgradeService = upgradeService;
+        this.plugin = plugin;
         this.gui = gui;
         this.configGui = configGui;
         this.tagSelectGui = tagSelectGui;
@@ -86,6 +90,7 @@ public final class HopperFilterListener implements Listener {
 
     public synchronized void update(FilterService filterService,
                                     UpgradeService upgradeService,
+                                    Plugin plugin,
                                     FilterGui gui,
                                     FilterMatchConfigGui configGui,
                                     FilterTagSelectGui tagSelectGui,
@@ -98,6 +103,7 @@ public final class HopperFilterListener implements Listener {
                                     String msgTooClose) {
         this.filterService = filterService;
         this.upgradeService = upgradeService;
+        this.plugin = plugin;
         this.gui = gui;
         this.configGui = configGui;
         this.tagSelectGui = tagSelectGui;
@@ -199,11 +205,31 @@ public final class HopperFilterListener implements Listener {
         return false;
     }
 
-    /** Returns the speed interval in ms for the given hopper, or -1 if no throttling. */
-    private long speedIntervalMs(HopperKey key) {
+    /** Returns desired ticks between transfers, or -1 if upgrade system is off. */
+    private int speedTicks(HopperKey key) {
         UpgradeService us = upgradeService;
         if (us == null || !us.getConfig().isEnabled()) return -1;
-        return (long) us.getLevelData(key).transferSpeedTicks() * 50L;
+        return us.getLevelData(key).transferSpeedTicks();
+    }
+
+    /** Returns the speed interval in ms, or -1 if no throttling. */
+    private long speedIntervalMs(int ticks) {
+        return ticks > 0 ? (long) ticks * 50L : -1;
+    }
+
+    /**
+     * Schedules a next-tick task to override the hopper's vanilla 8-tick cooldown with
+     * the configured speed. Only called when speedTicks < 8 (faster than vanilla).
+     */
+    private void scheduleSpeedBoost(Block block, int ticks) {
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            if (block.getType() != Material.HOPPER) return;
+            try {
+                Hopper state = (Hopper) block.getState();
+                state.setTransferCooldown(ticks - 1); // -1 because one tick already elapsed
+                state.update();
+            } catch (Exception ignored) {}
+        });
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -221,7 +247,8 @@ public final class HopperFilterListener implements Listener {
             }
 
             // Speed throttle
-            long interval = speedIntervalMs(key);
+            int ticks = speedTicks(key);
+            long interval = speedIntervalMs(ticks);
             long nowMs = System.currentTimeMillis();
             if (interval > 0) {
                 if (nowMs - lastTransferMs.getOrDefault(key, 0L) < interval) {
@@ -230,16 +257,20 @@ public final class HopperFilterListener implements Listener {
                 }
             }
 
+            Block hopperBlock = hopperHolder.getBlock();
+
             ItemStack[] filter = filterService.getOrLoadView(key);
             List<CompiledEntry> compiled = compileFilter(filter);
             if (!isActive(compiled)) {
                 if (interval > 0) lastTransferMs.put(key, nowMs);
+                if (ticks > 0 && ticks < 8) scheduleSpeedBoost(hopperBlock, ticks);
                 return;
             }
 
             ItemStack attempted = event.getItem();
             if (allows(compiled, attempted)) {
                 if (interval > 0) lastTransferMs.put(key, nowMs);
+                if (ticks > 0 && ticks < 8) scheduleSpeedBoost(hopperBlock, ticks);
                 return;
             }
 
@@ -276,6 +307,7 @@ public final class HopperFilterListener implements Listener {
 
             destination.addItem(one);
             if (interval > 0) lastTransferMs.put(key, nowMs);
+            if (ticks > 0 && ticks < 8) scheduleSpeedBoost(hopperBlock, ticks);
         } catch (Exception e) {
             LOGGER.log(java.util.logging.Level.WARNING, "[HopperFilter] Error in InventoryMoveItemEvent", e);
         }
@@ -296,7 +328,8 @@ public final class HopperFilterListener implements Listener {
             }
 
             // Speed throttle
-            long interval = speedIntervalMs(key);
+            int ticks = speedTicks(key);
+            long interval = speedIntervalMs(ticks);
             long nowMs = System.currentTimeMillis();
             if (interval > 0) {
                 if (nowMs - lastTransferMs.getOrDefault(key, 0L) < interval) {

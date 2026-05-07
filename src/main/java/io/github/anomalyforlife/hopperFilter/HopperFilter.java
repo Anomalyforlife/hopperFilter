@@ -192,6 +192,7 @@ public final class HopperFilter extends JavaPlugin {
             listener = new HopperFilterListener(
                     filterService,
                     upgradeService,
+                    this,
                     gui,
                     configGui,
                     tagSelectGui,
@@ -207,6 +208,7 @@ public final class HopperFilter extends JavaPlugin {
             listener.update(
                     filterService,
                     upgradeService,
+                    this,
                     gui,
                     configGui,
                     tagSelectGui,

@@ -59,6 +59,7 @@ tasks.named("shadowJar", com.github.jengelman.gradle.plugins.shadow.tasks.Shadow
 tasks.register("shadowAllJar", com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
     archiveClassifier.set("all")
     configurations = [project.configurations.runtimeClasspath]
+    from(sourceSets.main.output)
 }
 
 // Keep the plain jar available as an explicit "thin" artifact.

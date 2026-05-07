@@ -1,10 +1,14 @@
 package io.github.anomalyforlife.hopperFilter.upgrade;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
 import io.github.anomalyforlife.hopperFilter.model.HopperKey;
@@ -82,6 +86,55 @@ public final class UpgradeService {
             LOGGER.warning("[HopperFilter] Failed to save hopper upgrade: " + e.getMessage());
             return UpgradeResult.DB_ERROR;
         }
+    }
+
+    /**
+     * Sets all hoppers owned by the given player to the maximum level.
+     * Updates both the DB and the in-memory cache.
+     *
+     * @return number of hoppers upgraded
+     */
+    public int upgradeAllToMax(UUID ownerUuid) throws Exception {
+        int maxLevel = config.getMaxLevel();
+        List<HopperKey> keys = storage.loadHopperKeysByOwner(ownerUuid);
+        if (keys.isEmpty()) return 0;
+        storage.setAllLevelsByOwner(ownerUuid, maxLevel);
+        for (HopperKey key : keys) {
+            levelCache.put(key, maxLevel);
+        }
+        return keys.size();
+    }
+
+    /**
+     * Sets all hoppers within {@code radius} blocks of {@code center} to the maximum level.
+     * Operates on the in-memory cache (no DB query needed to find candidates).
+     *
+     * @return number of hoppers upgraded
+     */
+    public int upgradeInRadiusToMax(Location center, double radius) throws Exception {
+        if (center == null || center.getWorld() == null) return 0;
+        int maxLevel = config.getMaxLevel();
+        UUID worldId = center.getWorld().getUID();
+        double cx = center.getX(), cy = center.getY(), cz = center.getZ();
+        double r2 = radius * radius;
+
+        List<HopperKey> targets = new ArrayList<>();
+        for (HopperKey key : levelCache.keySet()) {
+            if (!key.worldUuid().equals(worldId)) continue;
+            double dx = key.x() + 0.5 - cx;
+            double dy = key.y() + 0.5 - cy;
+            double dz = key.z() + 0.5 - cz;
+            if (dx * dx + dy * dy + dz * dz <= r2) {
+                targets.add(key);
+            }
+        }
+        if (targets.isEmpty()) return 0;
+
+        for (HopperKey key : targets) {
+            storage.saveHopperLevel(key, maxLevel);
+            levelCache.put(key, maxLevel);
+        }
+        return targets.size();
     }
 
     public enum UpgradeResult {

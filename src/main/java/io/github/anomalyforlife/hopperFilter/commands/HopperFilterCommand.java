@@ -1,9 +1,11 @@
 package io.github.anomalyforlife.hopperFilter.commands;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -14,12 +16,14 @@ import org.bukkit.inventory.ItemStack;
 import io.github.anomalyforlife.hopperFilter.FilteredHopperItem;
 import io.github.anomalyforlife.hopperFilter.model.HopperKey;
 import io.github.anomalyforlife.hopperFilter.service.FilterService;
+import io.github.anomalyforlife.hopperFilter.upgrade.UpgradeService;
 import io.github.anomalyforlife.hopperFilter.util.LanguageManager;
 import io.github.anomalyforlife.hopperFilter.util.Messages;
 
 public final class HopperFilterCommand implements CommandExecutor {
     private final Runnable reloadAction;
     private volatile FilterService filterService;
+    private volatile UpgradeService upgradeService;
     private volatile Messages messages;
     private volatile LanguageManager languageManager;
 
@@ -30,6 +34,7 @@ public final class HopperFilterCommand implements CommandExecutor {
 
     public HopperFilterCommand(Runnable reloadAction,
                               FilterService filterService,
+                              UpgradeService upgradeService,
                               Messages messages,
                               LanguageManager languageManager,
                               String filteredHopperName,
@@ -37,10 +42,11 @@ public final class HopperFilterCommand implements CommandExecutor {
                               String giveMessageSender,
                               String giveMessageReceiver) {
         this.reloadAction = reloadAction;
-        update(filterService, messages, languageManager, filteredHopperName, filteredHopperLore, giveMessageSender, giveMessageReceiver);
+        update(filterService, upgradeService, messages, languageManager, filteredHopperName, filteredHopperLore, giveMessageSender, giveMessageReceiver);
     }
 
     public void update(FilterService filterService,
+                       UpgradeService upgradeService,
                        Messages messages,
                        LanguageManager languageManager,
                        String filteredHopperName,
@@ -48,6 +54,7 @@ public final class HopperFilterCommand implements CommandExecutor {
                        String giveMessageSender,
                        String giveMessageReceiver) {
         this.filterService = filterService;
+        this.upgradeService = upgradeService;
         this.messages = messages;
         this.languageManager = languageManager;
         this.filteredHopperName = filteredHopperName;
@@ -178,6 +185,87 @@ public final class HopperFilterCommand implements CommandExecutor {
                 }
                 recvMsg = recvMsg.replace("{amount}", String.valueOf(amount));
                 messages.send(target, recvMsg);
+                return true;
+            }
+            case "maxupgrade" -> {
+                if (!sender.hasPermission("hopperfilter.giveupgrades.max")) {
+                    messages.send(sender, languageManager.getCmdNoPermission());
+                    return true;
+                }
+                if (upgradeService == null) {
+                    messages.send(sender, "§cThe upgrade system is not enabled.");
+                    return true;
+                }
+                if (args.length < 2) {
+                    messages.send(sender, "§cUsage: /" + label + " maxupgrade <player>");
+                    return true;
+                }
+                UUID targetUuid;
+                String targetName;
+                Player online = Bukkit.getPlayerExact(args[1]);
+                if (online != null) {
+                    targetUuid = online.getUniqueId();
+                    targetName = online.getName();
+                } else {
+                    @SuppressWarnings("deprecation")
+                    OfflinePlayer op = Bukkit.getOfflinePlayer(args[1]);
+                    if (!op.hasPlayedBefore()) {
+                        messages.send(sender, "§cPlayer not found.");
+                        return true;
+                    }
+                    targetUuid = op.getUniqueId();
+                    targetName = op.getName() != null ? op.getName() : args[1];
+                }
+                try {
+                    int count = upgradeService.upgradeAllToMax(targetUuid);
+                    if (count == 0) {
+                        messages.send(sender, "§e" + targetName + " has no filtered hoppers to upgrade.");
+                    } else {
+                        messages.send(sender, "§aUpgraded §f" + count + "§a hopper(s) of §f" + targetName + "§a to max level.");
+                    }
+                } catch (Exception e) {
+                    messages.send(sender, languageManager.getCmdDbError(e.getMessage()));
+                }
+                return true;
+            }
+            case "upgraderadius" -> {
+                if (!sender.hasPermission("hopperfilter.giveupgrades.max")) {
+                    messages.send(sender, languageManager.getCmdNoPermission());
+                    return true;
+                }
+                if (!(sender instanceof Player player)) {
+                    messages.send(sender, languageManager.getCmdOnlyPlayers());
+                    return true;
+                }
+                if (upgradeService == null) {
+                    messages.send(sender, "§cThe upgrade system is not enabled.");
+                    return true;
+                }
+                if (args.length < 2) {
+                    messages.send(sender, "§cUsage: /" + label + " upgraderadius <radius>");
+                    return true;
+                }
+                double radius;
+                try {
+                    radius = Double.parseDouble(args[1]);
+                } catch (NumberFormatException e) {
+                    messages.send(sender, "§cInvalid radius: must be a number.");
+                    return true;
+                }
+                if (radius <= 0 || radius > 500) {
+                    messages.send(sender, "§cRadius must be between 1 and 500.");
+                    return true;
+                }
+                try {
+                    int count = upgradeService.upgradeInRadiusToMax(player.getLocation(), radius);
+                    if (count == 0) {
+                        messages.send(sender, "§eNo filtered hoppers found within §f" + (int) radius + "§e blocks.");
+                    } else {
+                        messages.send(sender, "§aUpgraded §f" + count + "§a hopper(s) within §f" + (int) radius + "§a blocks to max level.");
+                    }
+                } catch (Exception e) {
+                    messages.send(sender, languageManager.getCmdDbError(e.getMessage()));
+                }
                 return true;
             }
             default -> {

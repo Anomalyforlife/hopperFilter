@@ -80,6 +80,7 @@ public final class HopperFilter extends JavaPlugin {
                 commandExecutor = new HopperFilterCommand(
                         this::reloadAll,
                         filterService,
+                        upgradeService,
                         messages,
                         languageManager,
                         getConfig().getString("filtered-hopper.name", "§6Filtered Hopper"),
@@ -90,6 +91,7 @@ public final class HopperFilter extends JavaPlugin {
             } else {
                 commandExecutor.update(
                         filterService,
+                        upgradeService,
                         messages,
                         languageManager,
                         getConfig().getString("filtered-hopper.name", "§6Filtered Hopper"),
@@ -221,6 +223,7 @@ public final class HopperFilter extends JavaPlugin {
         if (commandExecutor != null) {
             commandExecutor.update(
                     filterService,
+                    upgradeService,
                     messages,
                     languageManager,
                     getConfig().getString("filtered-hopper.name", "§6Filtered Hopper"),

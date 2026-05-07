@@ -381,7 +381,7 @@ public final class HopperFilterListener implements Listener {
 
         try {
             HopperKey key = HopperKey.fromLocation(event.getBlockPlaced().getLocation());
-            filterService.registerFilteredHopper(key);
+            filterService.registerFilteredHopper(key, event.getPlayer().getUniqueId());
             if (upgradeService != null) {
                 upgradeService.registerHopper(key);
             }

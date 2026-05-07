@@ -8,8 +8,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -83,9 +85,13 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
                     "ALTER TABLE " + FILTERED_HOPPER_LOCATIONS_TABLE + " ADD COLUMN level INTEGER NOT NULL DEFAULT 1"
             )) {
                 ps.executeUpdate();
-            } catch (SQLException ignored) {
-                // Column already exists — safe to ignore
-            }
+            } catch (SQLException ignored) {}
+            // Migration: add owner_uuid column (ignored if already present)
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "ALTER TABLE " + FILTERED_HOPPER_LOCATIONS_TABLE + " ADD COLUMN owner_uuid TEXT"
+            )) {
+                ps.executeUpdate();
+            } catch (SQLException ignored) {}
         }
     }
 
@@ -139,7 +145,7 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
     }
 
     @Override
-    public void addFilteredHopperLocation(HopperKey key) throws SQLException {
+    public void addFilteredHopperLocation(HopperKey key, UUID ownerUuid) throws SQLException {
         try (Connection connection = connectionProvider.getConnection()) {
             String sql = filteredHopperInsertIgnoreSql(connection);
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
@@ -147,8 +153,42 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
                 ps.setInt(2, key.x());
                 ps.setInt(3, key.y());
                 ps.setInt(4, key.z());
+                ps.setString(5, ownerUuid != null ? ownerUuid.toString() : null);
                 ps.executeUpdate();
             }
+        }
+    }
+
+    @Override
+    public List<HopperKey> loadHopperKeysByOwner(UUID ownerUuid) throws SQLException {
+        List<HopperKey> out = new ArrayList<>();
+        if (ownerUuid == null) return out;
+        try (Connection connection = connectionProvider.getConnection();
+             PreparedStatement ps = connection.prepareStatement(
+                     "SELECT world_uuid, x, y, z FROM " + FILTERED_HOPPER_LOCATIONS_TABLE + " WHERE owner_uuid=?")) {
+            ps.setString(1, ownerUuid.toString());
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String world = rs.getString(1);
+                    if (world == null || world.isBlank()) continue;
+                    try {
+                        out.add(new HopperKey(UUID.fromString(world), rs.getInt(2), rs.getInt(3), rs.getInt(4)));
+                    } catch (IllegalArgumentException ignored) {}
+                }
+            }
+        }
+        return out;
+    }
+
+    @Override
+    public void setAllLevelsByOwner(UUID ownerUuid, int level) throws SQLException {
+        if (ownerUuid == null) return;
+        try (Connection connection = connectionProvider.getConnection();
+             PreparedStatement ps = connection.prepareStatement(
+                     "UPDATE " + FILTERED_HOPPER_LOCATIONS_TABLE + " SET level=? WHERE owner_uuid=?")) {
+            ps.setInt(1, level);
+            ps.setString(2, ownerUuid.toString());
+            ps.executeUpdate();
         }
     }
 
@@ -280,14 +320,14 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
 
         // SQLite supports "INSERT OR IGNORE"; MySQL supports "INSERT IGNORE".
         if (p.contains("sqlite")) {
-            return "INSERT OR IGNORE INTO " + FILTERED_HOPPER_LOCATIONS_TABLE + "(world_uuid,x,y,z) VALUES (?,?,?,?)";
+            return "INSERT OR IGNORE INTO " + FILTERED_HOPPER_LOCATIONS_TABLE + "(world_uuid,x,y,z,owner_uuid) VALUES (?,?,?,?,?)";
         }
         if (p.contains("mysql") || p.contains("mariadb")) {
-            return "INSERT IGNORE INTO " + FILTERED_HOPPER_LOCATIONS_TABLE + "(world_uuid,x,y,z) VALUES (?,?,?,?)";
+            return "INSERT IGNORE INTO " + FILTERED_HOPPER_LOCATIONS_TABLE + "(world_uuid,x,y,z,owner_uuid) VALUES (?,?,?,?,?)";
         }
 
         // Fallback: may throw on duplicates.
-        return "INSERT INTO " + FILTERED_HOPPER_LOCATIONS_TABLE + "(world_uuid,x,y,z) VALUES (?,?,?,?)";
+        return "INSERT INTO " + FILTERED_HOPPER_LOCATIONS_TABLE + "(world_uuid,x,y,z,owner_uuid) VALUES (?,?,?,?,?)";
     }
 
     private String serializeItem(ItemStack itemStack) {

@@ -153,12 +153,12 @@ public final class FilterService {
         return filteredHopperCache.containsKey(key);
     }
 
-    public void registerFilteredHopper(HopperKey key) throws Exception {
+    public void registerFilteredHopper(HopperKey key, java.util.UUID ownerUuid) throws Exception {
         if (!specialHopperRequired) {
             return;
         }
         Objects.requireNonNull(key, "key");
-        storage.addFilteredHopperLocation(key);
+        storage.addFilteredHopperLocation(key, ownerUuid);
         filteredHopperCache.put(key, Boolean.TRUE);
     }
 

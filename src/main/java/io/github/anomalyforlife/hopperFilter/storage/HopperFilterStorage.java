@@ -1,5 +1,9 @@
 package io.github.anomalyforlife.hopperFilter.storage;
 
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
 import org.bukkit.inventory.ItemStack;
 
 import io.github.anomalyforlife.hopperFilter.model.HopperKey;
@@ -7,32 +11,19 @@ import io.github.anomalyforlife.hopperFilter.model.HopperKey;
 public interface HopperFilterStorage extends AutoCloseable {
     void init() throws Exception;
 
-    /**
-     * Initializes the table used to persist locations of "special" filtered hoppers.
-     * Only required when special-hopper mode is enabled.
-     */
     void initFilteredHopperLocations() throws Exception;
 
-    /**
-     * Loads all persisted special filtered hopper locations together with their upgrade level.
-     * Only required when special-hopper mode is enabled.
-     */
-    java.util.Map<HopperKey, Integer> loadFilteredHopperLocations() throws Exception;
+    Map<HopperKey, Integer> loadFilteredHopperLocations() throws Exception;
 
-    /**
-     * Persists a location as a special filtered hopper (default level 1).
-     */
-    void addFilteredHopperLocation(HopperKey key) throws Exception;
+    void addFilteredHopperLocation(HopperKey key, UUID ownerUuid) throws Exception;
 
-    /**
-     * Removes a location from the special filtered hopper table.
-     */
     void removeFilteredHopperLocation(HopperKey key) throws Exception;
 
-    /**
-     * Updates the upgrade level for an existing special hopper location.
-     */
     void saveHopperLevel(HopperKey key, int level) throws Exception;
+
+    List<HopperKey> loadHopperKeysByOwner(UUID ownerUuid) throws Exception;
+
+    void setAllLevelsByOwner(UUID ownerUuid, int level) throws Exception;
 
     ItemStack[] loadFilter(HopperKey key, int size) throws Exception;
 

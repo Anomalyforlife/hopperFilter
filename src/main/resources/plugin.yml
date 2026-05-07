@@ -44,3 +44,6 @@ permissions:
   hopperfilter.upgrade:
     description: Allows upgrading filtered hoppers via the GUI
     default: op
+  hopperfilter.giveupgrades.max:
+    description: Allows upgrading all filtered hoppers of a player to max level via command
+    default: op

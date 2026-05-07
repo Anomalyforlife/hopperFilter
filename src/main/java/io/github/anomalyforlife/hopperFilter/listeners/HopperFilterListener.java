@@ -1,7 +1,6 @@
 package io.github.anomalyforlife.hopperFilter.listeners;
 
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 import org.bukkit.GameMode;
@@ -56,9 +55,6 @@ public final class HopperFilterListener implements Listener {
     private volatile String msgMustSneakToBreak;
     private volatile String msgMustHaveBreakPerm;
     private volatile String msgTooClose;
-
-    /** Per-hopper last-transfer timestamp (ms) for speed throttling. */
-    private final ConcurrentHashMap<HopperKey, Long> lastTransferMs = new ConcurrentHashMap<>();
 
     public HopperFilterListener(FilterService filterService,
                                 UpgradeService upgradeService,
@@ -205,109 +201,76 @@ public final class HopperFilterListener implements Listener {
         return false;
     }
 
-    /** Returns desired ticks between transfers, or -1 if upgrade system is off. */
-    private int speedTicks(HopperKey key) {
+    /** Returns items to move per hopper transfer event; default 1 if upgrades are off. */
+    private int itemsPerTransfer(HopperKey key) {
         UpgradeService us = upgradeService;
-        if (us == null || !us.getConfig().isEnabled()) return -1;
-        return us.getLevelData(key).transferSpeedTicks();
+        if (us == null || !us.getConfig().isEnabled()) return 1;
+        return us.getLevelData(key).itemsPerTransfer();
     }
 
-    /** Returns the speed interval in ms, or -1 if no throttling. */
-    private long speedIntervalMs(int ticks) {
-        return ticks > 0 ? (long) ticks * 50L : -1;
-    }
-
-    /**
-     * Schedules a next-tick task to override the hopper's vanilla 8-tick cooldown with
-     * the configured speed. Only called when speedTicks < 8 (faster than vanilla).
-     */
-    private void scheduleSpeedBoost(Block block, int ticks) {
-        plugin.getServer().getScheduler().runTask(plugin, () -> {
-            if (block.getType() != Material.HOPPER) return;
-            try {
-                Hopper state = (Hopper) block.getState();
-                state.setTransferCooldown(ticks - 1); // -1 because one tick already elapsed
-                state.update();
-            } catch (Exception ignored) {}
-        });
+    /** Moves one allowed item from source to destination without firing Bukkit events. */
+    private void transferOneItem(Inventory source, Inventory destination, List<CompiledEntry> compiled) {
+        int slot = findFirstAllowedSlot(source, destination, compiled);
+        if (slot == -1) return;
+        ItemStack item = source.getItem(slot);
+        if (item == null || item.getType().isAir()) return;
+        ItemStack one = item.clone();
+        one.setAmount(1);
+        java.util.Map<Integer, ItemStack> leftover = destination.addItem(one);
+        if (!leftover.isEmpty()) return;
+        int newAmount = item.getAmount() - 1;
+        if (newAmount <= 0) {
+            source.setItem(slot, null);
+        } else {
+            source.getItem(slot).setAmount(newAmount);
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onInventoryMoveItem(InventoryMoveItemEvent event) {
         Inventory destination = event.getDestination();
+
         if (!(destination.getHolder() instanceof Hopper hopperHolder)) {
+            // Push direction (hopper → container)
+            Inventory source = event.getSource();
+            if (!(source.getHolder() instanceof Hopper srcHopper)) return;
+            try {
+                HopperKey key = HopperKey.fromLocation(srcHopper.getLocation());
+                if (!filterService.isFilteredHopper(key)) return;
+
+                int n = itemsPerTransfer(key);
+                // Let Minecraft move the 1st item normally; schedule (n-1) extra items for next tick
+                for (int i = 1; i < n; i++) {
+                    plugin.getServer().getScheduler().runTask(plugin, () ->
+                        transferOneItem(source, destination, List.of()));
+                }
+            } catch (Exception e) {
+                LOGGER.log(java.util.logging.Level.WARNING, "[HopperFilter] Error in InventoryMoveItemEvent", e);
+            }
             return;
         }
 
         try {
             HopperKey key = HopperKey.fromLocation(hopperHolder.getLocation());
-
-            if (!filterService.isFilteredHopper(key)) {
-                return;
-            }
-
-            // Speed throttle
-            int ticks = speedTicks(key);
-            long interval = speedIntervalMs(ticks);
-            long nowMs = System.currentTimeMillis();
-            if (interval > 0) {
-                if (nowMs - lastTransferMs.getOrDefault(key, 0L) < interval) {
-                    event.setCancelled(true);
-                    return;
-                }
-            }
-
-            Block hopperBlock = hopperHolder.getBlock();
-
-            ItemStack[] filter = filterService.getOrLoadView(key);
-            List<CompiledEntry> compiled = compileFilter(filter);
-            if (!isActive(compiled)) {
-                if (interval > 0) lastTransferMs.put(key, nowMs);
-                if (ticks > 0 && ticks < 8) scheduleSpeedBoost(hopperBlock, ticks);
-                return;
-            }
-
-            ItemStack attempted = event.getItem();
-            if (allows(compiled, attempted)) {
-                if (interval > 0) lastTransferMs.put(key, nowMs);
-                if (ticks > 0 && ticks < 8) scheduleSpeedBoost(hopperBlock, ticks);
-                return;
-            }
+            if (!filterService.isFilteredHopper(key)) return;
 
             Inventory source = event.getSource();
-            int sourceSlot = findFirstAllowedSlot(source, destination, compiled);
-            if (sourceSlot == -1) {
+            ItemStack[] filter = filterService.getOrLoadView(key);
+            List<CompiledEntry> compiled = compileFilter(filter);
+
+            ItemStack moving = event.getItem();
+            if (!allows(compiled, moving)) {
                 event.setCancelled(true);
                 return;
             }
 
-            ItemStack sourceItem = source.getItem(sourceSlot);
-            if (sourceItem == null || sourceItem.getType().isAir()) {
-                event.setCancelled(true);
-                return;
+            // Item is allowed — Minecraft moves it normally (1 item).
+            // Schedule (n-1) extra items for upgrade levels.
+            int n = itemsPerTransfer(key);
+            for (int i = 1; i < n; i++) {
+                plugin.getServer().getScheduler().runTask(plugin, () ->
+                    transferOneItem(source, destination, compiled));
             }
-
-            ItemStack one = sourceItem.clone();
-            one.setAmount(1);
-            if (!canFit(destination, one)) {
-                event.setCancelled(true);
-                return;
-            }
-
-            ItemStack clonedSourceItem = sourceItem.clone();
-            event.setCancelled(true);
-
-            int newAmount = clonedSourceItem.getAmount() - 1;
-            if (newAmount <= 0) {
-                source.setItem(sourceSlot, null);
-            } else {
-                clonedSourceItem.setAmount(newAmount);
-                source.setItem(sourceSlot, clonedSourceItem);
-            }
-
-            destination.addItem(one);
-            if (interval > 0) lastTransferMs.put(key, nowMs);
-            if (ticks > 0 && ticks < 8) scheduleSpeedBoost(hopperBlock, ticks);
         } catch (Exception e) {
             LOGGER.log(java.util.logging.Level.WARNING, "[HopperFilter] Error in InventoryMoveItemEvent", e);
         }
@@ -322,36 +285,14 @@ public final class HopperFilterListener implements Listener {
 
         try {
             HopperKey key = HopperKey.fromLocation(hopperHolder.getLocation());
-
-            if (!filterService.isFilteredHopper(key)) {
-                return;
-            }
-
-            // Speed throttle
-            int ticks = speedTicks(key);
-            long interval = speedIntervalMs(ticks);
-            long nowMs = System.currentTimeMillis();
-            if (interval > 0) {
-                if (nowMs - lastTransferMs.getOrDefault(key, 0L) < interval) {
-                    event.setCancelled(true);
-                    return;
-                }
-            }
+            if (!filterService.isFilteredHopper(key)) return;
 
             ItemStack[] filter = filterService.getOrLoadView(key);
             List<CompiledEntry> compiled = compileFilter(filter);
-            if (!isActive(compiled)) {
-                if (interval > 0) lastTransferMs.put(key, nowMs);
-                return;
-            }
+            if (!isActive(compiled)) return;
 
             ItemStack attempted = event.getItem() == null ? null : event.getItem().getItemStack();
-            if (allows(compiled, attempted)) {
-                if (interval > 0) lastTransferMs.put(key, nowMs);
-                return;
-            }
-
-            event.setCancelled(true);
+            if (!allows(compiled, attempted)) event.setCancelled(true);
         } catch (Exception e) {
             LOGGER.log(java.util.logging.Level.WARNING, "[HopperFilter] Error in InventoryPickupItemEvent", e);
         }
@@ -622,7 +563,6 @@ public final class HopperFilterListener implements Listener {
                 }
             }
 
-            lastTransferMs.remove(key);
         } catch (Exception e) {
             messages.send(player, "§cDB error: " + e.getMessage());
             event.setCancelled(true);

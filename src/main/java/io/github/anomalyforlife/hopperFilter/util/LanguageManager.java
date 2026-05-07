@@ -169,7 +169,7 @@ public final class LanguageManager {
         this.upgradeButtonName = config.getString("upgrade-gui.button-name", "§e⬆ §6Upgrade Hopper §e⬆");
         this.upgradeButtonLevel = config.getString("upgrade-gui.button-level", "§7Level: §e{level}§7/§e{max}");
         this.upgradeButtonSlots = config.getString("upgrade-gui.button-slots", "§7Filter Slots: §e{slots}");
-        this.upgradeButtonSpeed = config.getString("upgrade-gui.button-speed", "§7Transfer Speed: §e{ticks}§7 ticks");
+        this.upgradeButtonSpeed = config.getString("upgrade-gui.button-speed", "§7Items per Transfer: §e{items}");
         this.upgradeButtonCost = config.getString("upgrade-gui.button-cost", "§7Upgrade Cost: §a${cost}");
         this.upgradeButtonClick = config.getString("upgrade-gui.button-click", "§e§l» §7Click to upgrade!");
         this.upgradeButtonMaxLevel = config.getString("upgrade-gui.button-max-level", "§a§l★ §aMAX LEVEL REACHED §a§l★");
@@ -370,8 +370,8 @@ public final class LanguageManager {
         return upgradeButtonSlots.replace("{slots}", String.valueOf(slots));
     }
 
-    public String getUpgradeButtonSpeed(int ticks) {
-        return upgradeButtonSpeed.replace("{ticks}", String.valueOf(ticks));
+    public String getUpgradeButtonSpeed(int items) {
+        return upgradeButtonSpeed.replace("{items}", String.valueOf(items));
     }
 
     public String getUpgradeButtonCost(double cost) {

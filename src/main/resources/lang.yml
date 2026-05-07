@@ -112,7 +112,7 @@ upgrade-gui:
   button-name: "§e⬆ §6Upgrade Hopper §e⬆"
   button-level: "§7Level: §e{level}§7/§e{max}"
   button-slots: "§7Filter Slots: §e{slots}"
-  button-speed: "§7Transfer Speed: §e{ticks}§7 ticks"
+  button-speed: "§7Items per Transfer: §e{items}"
   button-cost: "§7Upgrade Cost: §a${cost}"
   button-click: "§e§l» §7Click to upgrade!"
   button-max-level: "§a§l★ §aMAX LEVEL REACHED §a§l★"

@@ -44,10 +44,10 @@ public final class UpgradeConfig {
                     levels.add(new LevelData(
                         s.getInt("cost", 0),
                         Math.max(1, s.getInt("filter-slots", 3)),
-                        Math.max(1, s.getInt("transfer-speed-ticks", 16))
+                        Math.max(1, s.getInt("items-per-transfer", 1))
                     ));
                 } else {
-                    levels.add(new LevelData(0, 3, 16));
+                    levels.add(new LevelData(0, 3, 1));
                 }
             }
         }
@@ -57,18 +57,18 @@ public final class UpgradeConfig {
 
     public static UpgradeConfig defaults() {
         List<LevelData> lvls = new ArrayList<>();
-        lvls.add(new LevelData(    0,  3, 16));
-        lvls.add(new LevelData( 1000,  6, 15));
-        lvls.add(new LevelData( 2000,  9, 14));
-        lvls.add(new LevelData( 3000, 12, 13));
-        lvls.add(new LevelData( 4000, 15, 12));
-        lvls.add(new LevelData( 5000, 18, 11));
-        lvls.add(new LevelData( 6000, 21, 10));
-        lvls.add(new LevelData( 7000, 24,  9));
+        lvls.add(new LevelData(    0,  3,  1));
+        lvls.add(new LevelData( 1000,  6,  2));
+        lvls.add(new LevelData( 2000,  9,  3));
+        lvls.add(new LevelData( 3000, 12,  4));
+        lvls.add(new LevelData( 4000, 15,  5));
+        lvls.add(new LevelData( 5000, 18,  6));
+        lvls.add(new LevelData( 6000, 21,  7));
+        lvls.add(new LevelData( 7000, 24,  8));
         lvls.add(new LevelData( 8000, 27,  9));
-        lvls.add(new LevelData(10000, 30,  8));
+        lvls.add(new LevelData(10000, 30, 10));
         return new UpgradeConfig(true, true, 10, lvls);
     }
 
-    public record LevelData(int cost, int filterSlots, int transferSpeedTicks) {}
+    public record LevelData(int cost, int filterSlots, int itemsPerTransfer) {}
 }

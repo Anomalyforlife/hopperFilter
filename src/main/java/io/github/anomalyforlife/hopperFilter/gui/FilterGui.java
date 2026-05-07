@@ -243,7 +243,7 @@ public final class FilterGui {
         List<Component> lore = new ArrayList<>();
         lore.add(LEGACY.deserialize(lang.getUpgradeButtonLevel(level, cfg.getMaxLevel())));
         lore.add(LEGACY.deserialize(lang.getUpgradeButtonSlots(data.filterSlots())));
-        lore.add(LEGACY.deserialize(lang.getUpgradeButtonSpeed(data.transferSpeedTicks())));
+        lore.add(LEGACY.deserialize(lang.getUpgradeButtonSpeed(data.itemsPerTransfer())));
         lore.add(Component.empty());
         if (isMax) {
             lore.add(LEGACY.deserialize(lang.getUpgradeButtonMaxLevel()));

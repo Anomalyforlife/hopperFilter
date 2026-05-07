@@ -35,6 +35,9 @@ configurations {
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:${paperApiVersion}")
+    compileOnly("com.github.MilkBowl:VaultAPI:1.7") {
+        exclude group: 'org.bukkit', module: 'bukkit'
+    }
 
     // Runtime deps (needed by the plugin). The thin jar stays thin; the "-all" shadowJar includes them.
     // Paper can also download them via (paper-)plugin.yml libraries.

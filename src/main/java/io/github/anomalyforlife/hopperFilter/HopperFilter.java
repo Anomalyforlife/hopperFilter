@@ -159,8 +159,9 @@ public final class HopperFilter extends JavaPlugin {
         UpgradeConfig upgradeConfig = UpgradeConfig.fromSection(getConfig().getConfigurationSection("upgrades"));
         if (specialMode && upgradeConfig.isEnabled()) {
             VaultEconomyHook economy = loadVaultEconomy();
-            if (upgradeConfig.isVaultRequired() && economy == null) {
-                getLogger().warning("[HopperFilter] Vault not found — upgrade costs will be skipped.");
+            if (upgradeConfig.isVaultRequired() && economy == null
+                    && getServer().getPluginManager().getPlugin("Vault") == null) {
+                getLogger().warning("Vault not found — upgrade costs will be skipped.");
             }
             this.upgradeService = new UpgradeService(storage, upgradeConfig, economy);
             Map<HopperKey, Integer> levels = storage.loadFilteredHopperLocations();
@@ -243,7 +244,7 @@ public final class HopperFilter extends JavaPlugin {
         try {
             return VaultEconomyHook.load(getServer());
         } catch (Exception | LinkageError e) {
-            getLogger().warning("[HopperFilter] Vault present but Economy class unavailable — upgrade costs disabled. (" + e + ")");
+            getLogger().warning("Vault present but Economy class unavailable — upgrade costs disabled. (" + e + ")");
             return null;
         }
     }

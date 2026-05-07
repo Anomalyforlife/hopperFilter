@@ -258,16 +258,12 @@ public final class HopperFilterListener implements Listener {
             ItemStack[] filter = filterService.getOrLoadView(key);
             List<CompiledEntry> compiled = compileFilter(filter);
 
-            ItemStack moving = event.getItem();
-            if (!allows(compiled, moving)) {
-                event.setCancelled(true);
-                return;
-            }
-
-            // Item is allowed — Minecraft moves it normally (1 item).
-            // Schedule (n-1) extra items for upgrade levels.
+            // Always cancel and handle manually to work around SPIGOT-3033:
+            // if we let Minecraft pick the item, it stops at the first blocked slot
+            // and never tries subsequent slots.
+            event.setCancelled(true);
             int n = itemsPerTransfer(key);
-            for (int i = 1; i < n; i++) {
+            for (int i = 0; i < n; i++) {
                 plugin.getServer().getScheduler().runTask(plugin, () ->
                     transferOneItem(source, destination, compiled));
             }

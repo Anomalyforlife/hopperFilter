@@ -210,20 +210,118 @@ public final class HopperFilterListener implements Listener {
 
     /** Moves one allowed item from source to destination without firing Bukkit events. */
     private void transferOneItem(Inventory source, Inventory destination, List<CompiledEntry> compiled) {
-        int slot = findFirstAllowedSlot(source, destination, compiled);
-        if (slot == -1) return;
-        ItemStack item = source.getItem(slot);
+        int srcSlot = findFirstAllowedSlot(source, destination, compiled);
+        if (srcSlot == -1) return;
+        ItemStack item = source.getItem(srcSlot);
         if (item == null || item.getType().isAir()) return;
         ItemStack one = item.clone();
         one.setAmount(1);
-        java.util.Map<Integer, ItemStack> leftover = destination.addItem(one);
-        if (!leftover.isEmpty()) return;
+
+        int dstSlot = findDestinationSlot(destination, one);
+        if (dstSlot == -1) return;
+
+        ItemStack existing = destination.getItem(dstSlot);
+        if (existing == null || existing.getType().isAir()) {
+            destination.setItem(dstSlot, one);
+        } else {
+            existing.setAmount(existing.getAmount() + 1);
+        }
+
         int newAmount = item.getAmount() - 1;
         if (newAmount <= 0) {
-            source.setItem(slot, null);
+            source.setItem(srcSlot, null);
         } else {
-            source.getItem(slot).setAmount(newAmount);
+            source.getItem(srcSlot).setAmount(newAmount);
         }
+    }
+
+    /** Snapshot of inventory contents (cloned items) for before/after comparison. */
+    private static ItemStack[] snapshotContents(Inventory inventory) {
+        ItemStack[] contents = inventory.getContents();
+        ItemStack[] snapshot = new ItemStack[contents.length];
+        for (int i = 0; i < contents.length; i++) {
+            snapshot[i] = contents[i] != null ? contents[i].clone() : null;
+        }
+        return snapshot;
+    }
+
+    /**
+     * Returns the first slot index whose amount increased compared to the snapshot,
+     * or -1 if no change is detected.
+     */
+    private static int findChangedSlot(ItemStack[] before, Inventory after) {
+        ItemStack[] current = after.getContents();
+        for (int i = 0; i < Math.min(before.length, current.length); i++) {
+            ItemStack b = before[i];
+            ItemStack a = current[i];
+            if (a == null || a.getType().isAir()) continue;
+            int amountBefore = (b == null || b.getType().isAir()) ? 0 : b.getAmount();
+            if (a.getAmount() > amountBefore) return i;
+        }
+        return -1;
+    }
+
+    /**
+     * Moves one allowed item from source into a specific destination slot.
+     * Falls back to any valid slot if dstSlot is full or mismatched.
+     */
+    private void transferOneItemToSlot(Inventory source, Inventory destination, List<CompiledEntry> compiled, int dstSlot) {
+        int srcSlot = findFirstAllowedSlot(source, destination, compiled);
+        if (srcSlot == -1) return;
+        ItemStack item = source.getItem(srcSlot);
+        if (item == null || item.getType().isAir()) return;
+
+        ItemStack existing = destination.getItem(dstSlot);
+        int max = Math.min(item.getMaxStackSize(), destination.getMaxStackSize());
+
+        boolean canPlace;
+        if (existing == null || existing.getType().isAir()) {
+            canPlace = true;
+        } else if (existing.isSimilar(item) && existing.getAmount() < max) {
+            canPlace = true;
+        } else {
+            canPlace = false;
+        }
+
+        if (!canPlace) {
+            // Target slot is full or incompatible; fall back to generic transfer
+            transferOneItem(source, destination, compiled);
+            return;
+        }
+
+        ItemStack one = item.clone();
+        one.setAmount(1);
+        if (existing == null || existing.getType().isAir()) {
+            destination.setItem(dstSlot, one);
+        } else {
+            existing.setAmount(existing.getAmount() + 1);
+        }
+
+        int newAmount = item.getAmount() - 1;
+        if (newAmount <= 0) {
+            source.setItem(srcSlot, null);
+        } else {
+            source.getItem(srcSlot).setAmount(newAmount);
+        }
+    }
+
+    /** Finds the destination slot index where a single-item stack can be placed. */
+    private static int findDestinationSlot(Inventory inventory, ItemStack stack) {
+        if (inventory == null || stack == null || stack.getType().isAir()) return -1;
+        int max = Math.min(stack.getMaxStackSize(), inventory.getMaxStackSize());
+        ItemStack[] contents = inventory.getContents();
+        int emptySlot = -1;
+        for (int i = 0; i < contents.length; i++) {
+            ItemStack existing = contents[i];
+            if (existing == null || existing.getType().isAir()) {
+                if (emptySlot == -1) emptySlot = i;
+                continue;
+            }
+            if (existing.isSimilar(stack) && existing.getAmount() < max) {
+                return i; // prefer stacking over empty slot
+            }
+        }
+        return emptySlot;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -238,12 +336,30 @@ public final class HopperFilterListener implements Listener {
                 HopperKey key = HopperKey.fromLocation(srcHopper.getLocation());
                 if (!filterService.isFilteredHopper(key)) return;
 
+                ItemStack[] filter = filterService.getOrLoadView(key);
+                List<CompiledEntry> compiled = compileFilter(filter);
+
                 int n = itemsPerTransfer(key);
-                // Let Minecraft move the 1st item normally; schedule (n-1) extra items for next tick
-                for (int i = 1; i < n; i++) {
-                    plugin.getServer().getScheduler().runTask(plugin, () ->
-                        transferOneItem(source, destination, List.of()));
-                }
+                if (n <= 1) return;
+
+                // Snapshot destination contents before Minecraft moves the 1st item, so we can
+                // detect which slot it chose (important for furnace fuel vs input logic).
+                ItemStack[] before = snapshotContents(destination);
+
+                // Let Minecraft move the 1st item normally so destination-specific slot logic
+                // (e.g. furnace fuel vs input) is preserved.
+                // Schedule (n-1) extras on the next tick targeting the same destination slot
+                // that Minecraft used, so fuel stays in the fuel slot.
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    int dstSlot = findChangedSlot(before, destination);
+                    for (int i = 1; i < n; i++) {
+                        if (dstSlot != -1) {
+                            transferOneItemToSlot(source, destination, compiled, dstSlot);
+                        } else {
+                            transferOneItem(source, destination, compiled);
+                        }
+                    }
+                });
             } catch (Exception e) {
                 LOGGER.log(java.util.logging.Level.WARNING, "[HopperFilter] Error in InventoryMoveItemEvent", e);
             }

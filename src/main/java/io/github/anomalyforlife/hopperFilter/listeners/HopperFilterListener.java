@@ -305,6 +305,14 @@ public final class HopperFilterListener implements Listener {
         }
     }
 
+    /** Returns how many more items can fit in a specific inventory slot. */
+    private static int slotRemainingSpace(Inventory inventory, int slot) {
+        ItemStack item = inventory.getItem(slot);
+        if (item == null || item.getType().isAir()) return inventory.getMaxStackSize();
+        int max = Math.min(item.getMaxStackSize(), inventory.getMaxStackSize());
+        return Math.max(0, max - item.getAmount());
+    }
+
     /** Finds the destination slot index where a single-item stack can be placed. */
     private static int findDestinationSlot(Inventory inventory, ItemStack stack) {
         if (inventory == null || stack == null || stack.getType().isAir()) return -1;
@@ -352,7 +360,11 @@ public final class HopperFilterListener implements Listener {
                 // that Minecraft used, so fuel stays in the fuel slot.
                 plugin.getServer().getScheduler().runTask(plugin, () -> {
                     int dstSlot = findChangedSlot(before, destination);
-                    for (int i = 1; i < n; i++) {
+                    // Cap extras to the remaining space in the chosen slot so we don't
+                    // overflow into a different slot (e.g. furnace input instead of fuel).
+                    int remaining = dstSlot != -1 ? slotRemainingSpace(destination, dstSlot) : n - 1;
+                    int extras = Math.min(n - 1, remaining);
+                    for (int i = 0; i < extras; i++) {
                         if (dstSlot != -1) {
                             transferOneItemToSlot(source, destination, compiled, dstSlot);
                         } else {

@@ -82,7 +82,7 @@ upgrades:
       items-per-transfer: 9
     10:
       cost: 10000
-      filter-slots: 53
+      filter-slots: 52
       items-per-transfer: 10
 
 tnt:

@@ -166,6 +166,7 @@ public final class HopperFilter extends JavaPlugin {
             this.upgradeService = new UpgradeService(storage, upgradeConfig, economy);
             Map<HopperKey, Integer> levels = storage.loadFilteredHopperLocations();
             upgradeService.loadLevels(levels);
+            upgradeService.loadCapExtrasToSlotSpace(storage.loadCapExtrasToSlotSpace());
         } else {
             this.upgradeService = null;
             if (!specialMode && upgradeConfig.isEnabled()) {

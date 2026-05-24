@@ -22,6 +22,7 @@ public final class UpgradeService {
     private volatile UpgradeConfig config;
     private final VaultEconomyHook economy; // null when Vault absent or upgrades disabled
     private final ConcurrentHashMap<HopperKey, Integer> levelCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<HopperKey, Boolean> capExtrasToSlotSpaceCache = new ConcurrentHashMap<>();
 
     public UpgradeService(HopperFilterStorage storage, UpgradeConfig config, VaultEconomyHook economy) {
         this.storage = Objects.requireNonNull(storage, "storage");
@@ -37,6 +38,14 @@ public final class UpgradeService {
         }
     }
 
+    /** Replaces the full cap-to-slot-space cache on reload. Defaults to true when missing. */
+    public void loadCapExtrasToSlotSpace(Map<HopperKey, Boolean> values) {
+        capExtrasToSlotSpaceCache.clear();
+        if (values != null) {
+            values.forEach((k, v) -> { if (k != null) capExtrasToSlotSpaceCache.put(k, v == null ? Boolean.TRUE : v); });
+        }
+    }
+
     public void updateConfig(UpgradeConfig config) {
         this.config = Objects.requireNonNull(config, "config");
     }
@@ -45,6 +54,22 @@ public final class UpgradeService {
 
     public int getLevel(HopperKey key) {
         return levelCache.getOrDefault(key, 1);
+    }
+
+    /** When true, extra items are capped to the remaining space in the destination slot chosen by vanilla logic. */
+    public boolean isCapExtrasToSlotSpace(HopperKey key) {
+        return capExtrasToSlotSpaceCache.getOrDefault(key, Boolean.TRUE);
+    }
+
+    public boolean toggleCapExtrasToSlotSpace(HopperKey key) throws Exception {
+        boolean next = !isCapExtrasToSlotSpace(key);
+        setCapExtrasToSlotSpace(key, next);
+        return next;
+    }
+
+    public void setCapExtrasToSlotSpace(HopperKey key, boolean enabled) throws Exception {
+        storage.saveCapExtrasToSlotSpace(key, enabled);
+        capExtrasToSlotSpaceCache.put(key, enabled);
     }
 
     public UpgradeConfig.LevelData getLevelData(HopperKey key) {
@@ -60,6 +85,7 @@ public final class UpgradeService {
     public void registerHopper(HopperKey key, int level) {
         int clamped = Math.max(1, Math.min(level, config.getMaxLevel()));
         levelCache.put(key, clamped);
+        capExtrasToSlotSpaceCache.putIfAbsent(key, Boolean.TRUE);
         try {
             storage.saveHopperLevel(key, clamped);
         } catch (Exception e) {
@@ -70,6 +96,7 @@ public final class UpgradeService {
     /** Called when a special hopper is broken. */
     public void unregisterHopper(HopperKey key) {
         levelCache.remove(key);
+        capExtrasToSlotSpaceCache.remove(key);
     }
 
     public UpgradeResult tryUpgrade(Player player, HopperKey key) {

@@ -360,10 +360,16 @@ public final class HopperFilterListener implements Listener {
                 // that Minecraft used, so fuel stays in the fuel slot.
                 plugin.getServer().getScheduler().runTask(plugin, () -> {
                     int dstSlot = findChangedSlot(before, destination);
-                    // Cap extras to the remaining space in the chosen slot so we don't
-                    // overflow into a different slot (e.g. furnace input instead of fuel).
-                    int remaining = dstSlot != -1 ? slotRemainingSpace(destination, dstSlot) : n - 1;
-                    int extras = Math.min(n - 1, remaining);
+                    int extras = n - 1;
+
+                    // When enabled (default), cap extras to the remaining space in the chosen slot
+                    // so we don't overflow into a different slot (e.g. furnace input instead of fuel).
+                    UpgradeService us = upgradeService;
+                    boolean capEnabled = us == null || !us.getConfig().isEnabled() || us.isCapExtrasToSlotSpace(key);
+                    if (capEnabled) {
+                        int remaining = dstSlot != -1 ? slotRemainingSpace(destination, dstSlot) : extras;
+                        extras = Math.min(extras, remaining);
+                    }
                     for (int i = 0; i < extras; i++) {
                         if (dstSlot != -1) {
                             transferOneItemToSlot(source, destination, compiled, dstSlot);
@@ -513,6 +519,23 @@ public final class HopperFilterListener implements Listener {
 
                 // Upgrade button (last slot, upgrade mode only)
                 int upgradeSlot = gui.upgradeButtonSlot();
+                int capSlot = gui.capExtrasToSlotSpaceButtonSlot();
+
+                // Cap-extras selector (slot before upgrade)
+                if (capSlot >= 0 && slot == capSlot
+                        && event.getClick() == ClickType.LEFT
+                        && event.getClickedInventory() != null
+                        && event.getClickedInventory().equals(top)) {
+                    UpgradeService us = upgradeService;
+                    if (us == null || !us.getConfig().isEnabled()) {
+                        return;
+                    }
+                    boolean enabled = us.toggleCapExtrasToSlotSpace(key);
+                    top.setItem(capSlot, gui.capExtrasToSlotSpaceButton(key));
+                    messages.actionBar(player, enabled ? lang.getMsgCapExtrasToSlotSpaceOn() : lang.getMsgCapExtrasToSlotSpaceOff());
+                    return;
+                }
+
                 if (upgradeSlot >= 0 && slot == upgradeSlot
                         && event.getClickedInventory() != null
                         && event.getClickedInventory().equals(top)) {

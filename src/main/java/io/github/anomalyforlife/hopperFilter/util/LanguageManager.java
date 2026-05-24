@@ -44,6 +44,7 @@ public final class LanguageManager {
     private final OptionTexts matchNBT;
     private final OptionTexts matchTag;
     private final OptionTexts matchBlacklist;
+    private final OptionTexts capExtrasToSlotSpace;
 
     private final String tagSelectTitle;
     private final String tagSelectBack;
@@ -62,6 +63,9 @@ public final class LanguageManager {
     private final String msgUpgradeVaultUnavailable;
     private final String msgUpgradeError;
     private final String msgUpgradeLockedSlot;
+
+    private final String msgCapExtrasToSlotSpaceOn;
+    private final String msgCapExtrasToSlotSpaceOff;
 
     // Filtered hopper item texts
     private final String filteredHopperLevelLore;
@@ -145,6 +149,12 @@ public final class LanguageManager {
             config.getString("gui.options.match-tag.on", "§aON"),
             config.getString("gui.options.match-tag.off", "§cOFF")
         );
+        this.capExtrasToSlotSpace = new OptionTexts(
+            config.getString("gui.options.cap-extras-to-slot-space.name", "Cap Extras To Slot"),
+            config.getString("gui.options.cap-extras-to-slot-space.description", "Limits extra transferred items to the remaining space in the chosen slot."),
+            config.getString("gui.options.cap-extras-to-slot-space.on", "§aON"),
+            config.getString("gui.options.cap-extras-to-slot-space.off", "§cOFF")
+        );
         this.matchBlacklist = new OptionTexts(
             config.getString("gui.options.match-blacklist.name", "Blacklist/Whitelist"),
             config.getString("gui.options.match-blacklist.description", "Attiva la blacklist (blocca l'item) o mantieni la whitelist (consenti l'item)."),
@@ -170,6 +180,9 @@ public final class LanguageManager {
         this.msgUpgradeVaultUnavailable = config.getString("messages.upgrade-vault-unavailable", "§c§l✗ §cVault is not available on this server.");
         this.msgUpgradeError = config.getString("messages.upgrade-error", "§c§l✗ §cUpgrade failed due to a database error.");
         this.msgUpgradeLockedSlot = config.getString("messages.upgrade-locked-slot", "§c§l✗ §cUpgrade the hopper to unlock this filter slot!");
+
+        this.msgCapExtrasToSlotSpaceOn = config.getString("messages.cap-extras-to-slot-space-on", "§aEnabled");
+        this.msgCapExtrasToSlotSpaceOff = config.getString("messages.cap-extras-to-slot-space-off", "§cDisabled");
 
         this.upgradeButtonName = config.getString("upgrade-gui.button-name", "§e⬆ §6Upgrade Hopper §e⬆");
         this.upgradeButtonLevel = config.getString("upgrade-gui.button-level", "§7Level: §e{level}§7/§e{max}");
@@ -306,6 +319,10 @@ public final class LanguageManager {
         return matchTag;
     }
 
+    public OptionTexts getCapExtrasToSlotSpace() {
+        return capExtrasToSlotSpace;
+    }
+
     public OptionTexts getMatchBlacklist() {
         return matchBlacklist;
     }
@@ -360,6 +377,9 @@ public final class LanguageManager {
     public String getMsgUpgradeVaultUnavailable() { return msgUpgradeVaultUnavailable; }
     public String getMsgUpgradeError() { return msgUpgradeError; }
     public String getMsgUpgradeLockedSlot() { return msgUpgradeLockedSlot; }
+
+    public String getMsgCapExtrasToSlotSpaceOn() { return msgCapExtrasToSlotSpaceOn; }
+    public String getMsgCapExtrasToSlotSpaceOff() { return msgCapExtrasToSlotSpaceOff; }
 
     public String getMsgUpgradeNoMoney(double cost) {
         return msgUpgradeNoMoney.replace("{cost}", String.format("%,.0f", cost));

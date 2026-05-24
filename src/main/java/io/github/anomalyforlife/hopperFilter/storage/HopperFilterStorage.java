@@ -21,6 +21,12 @@ public interface HopperFilterStorage extends AutoCloseable {
 
     void saveHopperLevel(HopperKey key, int level) throws Exception;
 
+    /** Loads per-hopper setting: whether extra transferred items are capped to remaining space in the chosen slot. */
+    Map<HopperKey, Boolean> loadCapExtrasToSlotSpace() throws Exception;
+
+    /** Persists per-hopper setting: whether extra transferred items are capped to remaining space in the chosen slot. */
+    void saveCapExtrasToSlotSpace(HopperKey key, boolean enabled) throws Exception;
+
     List<HopperKey> loadHopperKeysByOwner(UUID ownerUuid) throws Exception;
 
     void setAllLevelsByOwner(UUID ownerUuid, int level) throws Exception;

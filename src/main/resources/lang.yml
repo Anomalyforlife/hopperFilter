@@ -43,6 +43,12 @@ gui:
       on: "§a§l✓§r §aEnabled"
       off: "§c§l✗§r §cDisabled"
 
+    cap-extras-to-slot-space:
+      name: "§6Cap Extras To Slot"
+      description: "Limits extra transferred items to the remaining space in the chosen slot."
+      on: "§a§l✓§r §aEnabled"
+      off: "§c§l✗§r §cDisabled"
+
   # GUI per selezionare un tag specifico
   tag-select:
     title: "§e§lSelect §6§lTag§r"
@@ -89,6 +95,9 @@ messages:
   upgrade-vault-unavailable: "§c§l✗ §cVault is not available on this server."
   upgrade-error: "§c§l✗ §cUpgrade failed due to a database error."
   upgrade-locked-slot: "§c§l✗ §cUpgrade the hopper to unlock this filter slot!"
+
+  cap-extras-to-slot-space-on: "§a§l✓ §aSlot-cap enabled."
+  cap-extras-to-slot-space-off: "§e§l! §eSlot-cap disabled (may overflow to other slots)."
 
 # Messaggi di errore
 errors:

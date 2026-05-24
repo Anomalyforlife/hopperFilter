@@ -73,11 +73,13 @@ public final class FilterGui {
             for (int i = 0; i < activeSlots; i++) {
                 inv.setItem(i, addListIndicator(items[i]));
             }
-            // Locked slots (between active and upgrade button)
+            // Locked slots (between active and the option/upgrade buttons)
             ItemStack locked = createLockedSlot();
-            for (int i = activeSlots; i < size - 1; i++) {
+            for (int i = activeSlots; i < size - 2; i++) {
                 inv.setItem(i, locked);
             }
+            // Option selector always at the slot before upgrade
+            inv.setItem(size - 2, createCapExtrasToSlotSpaceButton(key));
             // Upgrade button always at last slot
             inv.setItem(size - 1, createUpgradeButton(key));
         } else {
@@ -199,11 +201,22 @@ public final class FilterGui {
         return filterService.size() - 1;
     }
 
+    /** Slot index of the cap-extras selector, or -1 when upgrades inactive. */
+    public int capExtrasToSlotSpaceButtonSlot() {
+        int upgradeSlot = upgradeButtonSlot();
+        if (upgradeSlot == -1) return -1;
+        return upgradeSlot - 1;
+    }
+
+    public ItemStack capExtrasToSlotSpaceButton(HopperKey key) {
+        return createCapExtrasToSlotSpaceButton(key);
+    }
+
     /** Returns true if this slot is a locked (not-yet-unlocked) filter slot. */
     public boolean isLockedSlot(HopperKey key, int slot) {
         if (upgradeService == null || !upgradeService.getConfig().isEnabled()) return false;
         int active = activeSlots(key);
-        return slot >= active && slot < filterService.size() - 1;
+        return slot >= active && slot < filterService.size() - 2;
     }
 
     // ── private helpers ──────────────────────────────────────────────────────
@@ -213,8 +226,28 @@ public final class FilterGui {
             return filterService.size();
         }
         int levelSlots = upgradeService.getLevelData(key).filterSlots();
-        // Reserve last slot for upgrade button
-        return Math.min(levelSlots, filterService.size() - 1);
+        // Reserve last two slots: option selector + upgrade button
+        return Math.min(levelSlots, filterService.size() - 2);
+    }
+
+    private ItemStack createCapExtrasToSlotSpaceButton(HopperKey key) {
+        boolean enabled = upgradeService != null && upgradeService.getConfig().isEnabled()
+                && upgradeService.isCapExtrasToSlotSpace(key);
+
+        Material material = enabled ? Material.LIME_DYE : Material.RED_DYE;
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
+
+        var texts = lang.getCapExtrasToSlotSpace();
+        String state = enabled ? texts.getOnState() : texts.getOffState();
+        meta.displayName(LEGACY.deserialize(texts.getName() + " §7- " + state));
+        meta.lore(List.of(
+                LEGACY.deserialize("§7" + texts.getDescription()),
+                LEGACY.deserialize("§7" + lang.getClickToChange())
+        ));
+        item.setItemMeta(meta);
+        return item;
     }
 
     private ItemStack createLockedSlot() {

@@ -75,6 +75,7 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
                             "y INTEGER NOT NULL," +
                             "z INTEGER NOT NULL," +
                             "level INTEGER NOT NULL DEFAULT 1," +
+                    "cap_extras_to_slot_space INTEGER NOT NULL DEFAULT 1," +
                             "owner_uuid TEXT," +
                             "PRIMARY KEY (world_uuid, x, y, z)" +
                             ")"
@@ -84,6 +85,9 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
             // Migration v1→v2: add level column (pre-upgrade-system installs).
             alterTableAddColumn(connection,
                     "ALTER TABLE " + FILTERED_HOPPER_LOCATIONS_TABLE + " ADD COLUMN level INTEGER NOT NULL DEFAULT 1");
+            // Migration v2→vX: add cap_extras_to_slot_space column (pre-slot-space-cap installs).
+            alterTableAddColumn(connection,
+                "ALTER TABLE " + FILTERED_HOPPER_LOCATIONS_TABLE + " ADD COLUMN cap_extras_to_slot_space INTEGER NOT NULL DEFAULT 1");
             // Migration v2→v3: add owner_uuid column (pre-owner-tracking installs).
             alterTableAddColumn(connection,
                     "ALTER TABLE " + FILTERED_HOPPER_LOCATIONS_TABLE + " ADD COLUMN owner_uuid TEXT");
@@ -142,6 +146,37 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
     }
 
     @Override
+    public Map<HopperKey, Boolean> loadCapExtrasToSlotSpace() throws SQLException {
+        Map<HopperKey, Boolean> out = new java.util.HashMap<>();
+        try (Connection connection = connectionProvider.getConnection()) {
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "SELECT world_uuid, x, y, z, cap_extras_to_slot_space FROM " + FILTERED_HOPPER_LOCATIONS_TABLE
+            )) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        String world = rs.getString(1);
+                        int x = rs.getInt(2);
+                        int y = rs.getInt(3);
+                        int z = rs.getInt(4);
+                        int enabled = rs.getInt(5);
+
+                        if (world == null || world.isBlank()) {
+                            continue;
+                        }
+
+                        try {
+                            UUID uuid = UUID.fromString(world);
+                            out.put(new HopperKey(uuid, x, y, z), enabled != 0);
+                        } catch (IllegalArgumentException ignored) {
+                        }
+                    }
+                }
+            }
+        }
+        return out;
+    }
+
+    @Override
     public void saveHopperLevel(HopperKey key, int level) throws SQLException {
         try (Connection connection = connectionProvider.getConnection()) {
             try (PreparedStatement ps = connection.prepareStatement(
@@ -149,6 +184,23 @@ public final class JdbcHopperFilterStorage implements HopperFilterStorage {
                     " SET level=? WHERE world_uuid=? AND x=? AND y=? AND z=?"
             )) {
                 ps.setInt(1, level);
+                ps.setString(2, key.worldUuid().toString());
+                ps.setInt(3, key.x());
+                ps.setInt(4, key.y());
+                ps.setInt(5, key.z());
+                ps.executeUpdate();
+            }
+        }
+    }
+
+    @Override
+    public void saveCapExtrasToSlotSpace(HopperKey key, boolean enabled) throws SQLException {
+        try (Connection connection = connectionProvider.getConnection()) {
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "UPDATE " + FILTERED_HOPPER_LOCATIONS_TABLE +
+                    " SET cap_extras_to_slot_space=? WHERE world_uuid=? AND x=? AND y=? AND z=?"
+            )) {
+                ps.setInt(1, enabled ? 1 : 0);
                 ps.setString(2, key.worldUuid().toString());
                 ps.setInt(3, key.x());
                 ps.setInt(4, key.y());

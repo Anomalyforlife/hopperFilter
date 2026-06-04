@@ -24,6 +24,7 @@ public final class FilterService {
 
     private final String specialHopperName;
     private final List<String> specialHopperLore;
+    private final int specialHopperCustomModelData;
 
     private final boolean acceptNameLoreFallback;
     private final String specialHopperNameNormalized;
@@ -39,7 +40,8 @@ public final class FilterService {
                          boolean specialHopperRequired,
                          boolean acceptNameLoreFallback,
                          String specialHopperName,
-                         List<String> specialHopperLore) throws Exception {
+                         List<String> specialHopperLore,
+                         int specialHopperCustomModelData) throws Exception {
         this.storage = Objects.requireNonNull(storage, "storage");
         if (size <= 0) {
             throw new IllegalArgumentException("size must be > 0");
@@ -48,6 +50,7 @@ public final class FilterService {
 
         this.specialHopperName = specialHopperName;
         this.specialHopperLore = specialHopperLore == null ? java.util.List.of() : java.util.List.copyOf(specialHopperLore);
+        this.specialHopperCustomModelData = specialHopperCustomModelData;
 
         this.acceptNameLoreFallback = acceptNameLoreFallback;
         this.specialHopperNameNormalized = normalizeLegacy(specialHopperName);
@@ -75,7 +78,7 @@ public final class FilterService {
     }
 
     public ItemStack createSpecialHopperItem(int amount) {
-        return FilteredHopperItem.create(amount, specialHopperName, specialHopperLore);
+        return FilteredHopperItem.create(amount, specialHopperName, specialHopperLore, specialHopperCustomModelData);
     }
 
     public List<String> getSpecialHopperLore() {

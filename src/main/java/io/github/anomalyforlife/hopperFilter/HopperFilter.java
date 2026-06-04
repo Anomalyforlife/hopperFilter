@@ -5,6 +5,7 @@ import java.util.Locale;
 import java.util.Map;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.command.CommandMap;
 import org.bukkit.command.defaults.BukkitCommand;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -76,6 +77,11 @@ public final class HopperFilter extends JavaPlugin {
         try {
             final CommandMap commandMap = getServer().getCommandMap();
 
+            boolean convEnabled = readConverterEnabled();
+            Material convMat = readConverterMaterial();
+            int convCmd = getConfig().getInt("hopper-converter.custom-model-data", 0);
+            int filteredCmd = getConfig().getInt("filtered-hopper.custom-model-data", 0);
+
             if (commandExecutor == null) {
                 commandExecutor = new HopperFilterCommand(
                         this::reloadAll,
@@ -86,7 +92,15 @@ public final class HopperFilter extends JavaPlugin {
                         getConfig().getString("filtered-hopper.name", "§6Filtered Hopper"),
                         getConfig().getStringList("filtered-hopper.lore"),
                         getConfig().getString("filtered-hopper.give-message-sender", "§aGiven {amount}x Filtered Hopper to {player}."),
-                        getConfig().getString("filtered-hopper.give-message-receiver", "§aYou received {amount}x Filtered Hopper.")
+                        getConfig().getString("filtered-hopper.give-message-receiver", "§aYou received {amount}x Filtered Hopper."),
+                        filteredCmd,
+                        convEnabled,
+                        getConfig().getString("hopper-converter.name", "§5Hopper Converter"),
+                        getConfig().getStringList("hopper-converter.lore"),
+                        convMat,
+                        convCmd,
+                        getConfig().getString("hopper-converter.give-message-sender", "§aGiven {amount}x Hopper Converter to {player}."),
+                        getConfig().getString("hopper-converter.give-message-receiver", "§aYou received {amount}x Hopper Converter.")
                 );
             } else {
                 commandExecutor.update(
@@ -97,20 +111,33 @@ public final class HopperFilter extends JavaPlugin {
                         getConfig().getString("filtered-hopper.name", "§6Filtered Hopper"),
                         getConfig().getStringList("filtered-hopper.lore"),
                         getConfig().getString("filtered-hopper.give-message-sender", "§aGiven {amount}x Filtered Hopper to {player}."),
-                        getConfig().getString("filtered-hopper.give-message-receiver", "§aYou received {amount}x Filtered Hopper.")
+                        getConfig().getString("filtered-hopper.give-message-receiver", "§aYou received {amount}x Filtered Hopper."),
+                        filteredCmd,
+                        convEnabled,
+                        getConfig().getString("hopper-converter.name", "§5Hopper Converter"),
+                        getConfig().getStringList("hopper-converter.lore"),
+                        convMat,
+                        convCmd,
+                        getConfig().getString("hopper-converter.give-message-sender", "§aGiven {amount}x Hopper Converter to {player}."),
+                        getConfig().getString("hopper-converter.give-message-receiver", "§aYou received {amount}x Hopper Converter.")
                 );
             }
 
             BukkitCommand hopperFilterCmd = new BukkitCommand("hopperfilter") {
                 {
                     setDescription("HopperFilter admin commands");
-                    setUsage("/hopperfilter <reload|info|clear|give>");
+                    setUsage("/hopperfilter <reload|info|clear|give|giveconverter|converthopper|convertradius|maxupgrade|upgraderadius>");
                     setAliases(java.util.List.of("hf"));
                 }
 
                 @Override
                 public boolean execute(org.bukkit.command.CommandSender sender, String label, String[] args) {
                     return commandExecutor.onCommand(sender, this, label, args);
+                }
+
+                @Override
+                public java.util.List<String> tabComplete(org.bukkit.command.CommandSender sender, String alias, String[] args) {
+                    return commandExecutor.onTabComplete(sender, this, alias, args);
                 }
             };
 
@@ -152,7 +179,8 @@ public final class HopperFilter extends JavaPlugin {
             specialMode,
             acceptNameLoreFallback,
             getConfig().getString("filtered-hopper.name", "§6Filtered Hopper"),
-            getConfig().getStringList("filtered-hopper.lore")
+            getConfig().getStringList("filtered-hopper.lore"),
+            getConfig().getInt("filtered-hopper.custom-model-data", 0)
         );
 
         // Upgrades: only in special-hopper mode (levels are stored per-hopper in DB)
@@ -190,6 +218,8 @@ public final class HopperFilter extends JavaPlugin {
         this.configGui = new FilterMatchConfigGui(filterService, messages, languageManager);
         this.tagSelectGui = new FilterTagSelectGui(filterService, configGui, messages, languageManager);
 
+        boolean converterEnabled = specialMode && getConfig().getBoolean("hopper-converter.enabled", true);
+
         if (listener == null) {
             listener = new HopperFilterListener(
                     filterService,
@@ -201,6 +231,7 @@ public final class HopperFilter extends JavaPlugin {
                     messages,
                     languageManager,
                     getConfig().getInt("tnt.blockedRadius", 5),
+                    converterEnabled,
                     languageManager.getMsgCleared(),
                     languageManager.getMsgMustSneakToBreak(),
                     languageManager.getMsgMustHaveBreakPerm(),
@@ -217,6 +248,7 @@ public final class HopperFilter extends JavaPlugin {
                     messages,
                     languageManager,
                     getConfig().getInt("tnt.blockedRadius", 5),
+                    converterEnabled,
                     languageManager.getMsgCleared(),
                     languageManager.getMsgMustSneakToBreak(),
                     languageManager.getMsgMustHaveBreakPerm(),
@@ -233,8 +265,34 @@ public final class HopperFilter extends JavaPlugin {
                     getConfig().getString("filtered-hopper.name", "§6Filtered Hopper"),
                     getConfig().getStringList("filtered-hopper.lore"),
                     getConfig().getString("filtered-hopper.give-message-sender", "§aGiven {amount}x Filtered Hopper to {player}."),
-                    getConfig().getString("filtered-hopper.give-message-receiver", "§aYou received {amount}x Filtered Hopper.")
+                    getConfig().getString("filtered-hopper.give-message-receiver", "§aYou received {amount}x Filtered Hopper."),
+                    getConfig().getInt("filtered-hopper.custom-model-data", 0),
+                    readConverterEnabled(),
+                    getConfig().getString("hopper-converter.name", "§5Hopper Converter"),
+                    getConfig().getStringList("hopper-converter.lore"),
+                    readConverterMaterial(),
+                    getConfig().getInt("hopper-converter.custom-model-data", 0),
+                    getConfig().getString("hopper-converter.give-message-sender", "§aGiven {amount}x Hopper Converter to {player}."),
+                    getConfig().getString("hopper-converter.give-message-receiver", "§aYou received {amount}x Hopper Converter.")
             );
+        }
+    }
+
+    private boolean readConverterEnabled() {
+        boolean filteredHopperEnabled = getConfig().getBoolean("filtered-hopper.enabled", true);
+        boolean requireSpecialHopper = getConfig().getBoolean("filtered-hopper.require-special-hopper", true);
+        boolean specialMode = filteredHopperEnabled && requireSpecialHopper;
+        return specialMode && getConfig().getBoolean("hopper-converter.enabled", true);
+    }
+
+    private Material readConverterMaterial() {
+        String mat = getConfig().getString("hopper-converter.item", "HOPPER");
+        if (mat == null || mat.isBlank()) return Material.HOPPER;
+        try {
+            return Material.valueOf(mat.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            getLogger().warning("Invalid hopper-converter.item '" + mat + "'; using HOPPER.");
+            return Material.HOPPER;
         }
     }
 

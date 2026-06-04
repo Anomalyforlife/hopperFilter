@@ -16,7 +16,7 @@ libraries:
 commands:
   hopperfilter:
     description: HopperFilter admin commands
-    usage: "/hopperfilter <reload|info|clear|give>"
+    usage: "/hopperfilter <reload|info|clear|give|giveconverter|maxupgrade|upgraderadius>"
     aliases: [ hf ]
 
 permissions:
@@ -39,7 +39,10 @@ permissions:
     description: Allows clearing hopper filters via command
     default: op
   hopperfilter.admin.give:
-    description: Allows giving special Filtered Hoppers via command
+    description: Allows giving special Filtered Hoppers and Hopper Converters via command
+    default: op
+  hopperfilter.admin.convert:
+    description: Allows converting hoppers to filtered hoppers via command or converter item
     default: op
   hopperfilter.upgrade:
     description: Allows upgrading filtered hoppers via the GUI

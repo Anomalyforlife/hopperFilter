@@ -24,6 +24,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
 
+import io.github.anomalyforlife.hopperFilter.HopperConverterItem;
 import io.github.anomalyforlife.hopperFilter.gui.FilterGui;
 import io.github.anomalyforlife.hopperFilter.gui.FilterGuiHolder;
 import io.github.anomalyforlife.hopperFilter.gui.FilterMatchConfigGui;
@@ -51,6 +52,7 @@ public final class HopperFilterListener implements Listener {
     private volatile UpgradeService upgradeService; // nullable
     private volatile Plugin plugin;
     private volatile int tntBlockedRadius;
+    private volatile boolean converterEnabled;
     private volatile String msgCleared;
     private volatile String msgMustSneakToBreak;
     private volatile String msgMustHaveBreakPerm;
@@ -65,6 +67,7 @@ public final class HopperFilterListener implements Listener {
                                 Messages messages,
                                 LanguageManager lang,
                                 int tntBlockedRadius,
+                                boolean converterEnabled,
                                 String msgCleared,
                                 String msgMustSneakToBreak,
                                 String msgMustHaveBreakPerm,
@@ -78,6 +81,7 @@ public final class HopperFilterListener implements Listener {
         this.messages = messages;
         this.lang = lang;
         this.tntBlockedRadius = tntBlockedRadius;
+        this.converterEnabled = converterEnabled;
         this.msgCleared = msgCleared;
         this.msgMustSneakToBreak = msgMustSneakToBreak;
         this.msgMustHaveBreakPerm = msgMustHaveBreakPerm;
@@ -93,6 +97,7 @@ public final class HopperFilterListener implements Listener {
                                     Messages messages,
                                     LanguageManager lang,
                                     int tntBlockedRadius,
+                                    boolean converterEnabled,
                                     String msgCleared,
                                     String msgMustSneakToBreak,
                                     String msgMustHaveBreakPerm,
@@ -106,6 +111,7 @@ public final class HopperFilterListener implements Listener {
         this.messages = messages;
         this.lang = lang;
         this.tntBlockedRadius = tntBlockedRadius;
+        this.converterEnabled = converterEnabled;
         this.msgCleared = msgCleared;
         this.msgMustSneakToBreak = msgMustSneakToBreak;
         this.msgMustHaveBreakPerm = msgMustHaveBreakPerm;
@@ -438,17 +444,58 @@ public final class HopperFilterListener implements Listener {
         }
 
         Player player = event.getPlayer();
+        Block block = event.getClickedBlock();
+
+        // Hopper Converter item: right-click on a hopper to convert it
+        ItemStack mainHand = player.getInventory().getItemInMainHand();
+        if (converterEnabled && HopperConverterItem.isConverter(mainHand) && block.getType() == Material.HOPPER) {
+            event.setCancelled(true);
+            if (!player.hasPermission("hopperfilter.admin.convert")) {
+                messages.send(player, "§cYou don't have permission to use this item.");
+                return;
+            }
+            if (!filterService.isSpecialHopperRequired()) {
+                messages.send(player, "§eAll hoppers are already filtered in global mode.");
+                return;
+            }
+            HopperKey key = HopperKey.fromLocation(block.getLocation());
+            try {
+                if (filterService.isFilteredHopper(key)) {
+                    messages.send(player, "§eThis hopper is already a filtered hopper.");
+                    return;
+                }
+                filterService.registerFilteredHopper(key, player.getUniqueId());
+                if (upgradeService != null) {
+                    upgradeService.registerHopper(key, 1);
+                }
+                if (player.getGameMode() != GameMode.CREATIVE) {
+                    int newAmt = mainHand.getAmount() - 1;
+                    if (newAmt <= 0) {
+                        player.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
+                    } else {
+                        ItemStack reduced = mainHand.clone();
+                        reduced.setAmount(newAmt);
+                        player.getInventory().setItemInMainHand(reduced);
+                    }
+                }
+                messages.send(player, "§aHopper converted to filtered hopper.");
+            } catch (Exception e) {
+                messages.send(player, "§cDB error: " + e.getMessage());
+                LOGGER.log(java.util.logging.Level.WARNING, "[HopperFilter] Error converting hopper with item", e);
+            }
+            return;
+        }
+
         if (!player.hasPermission("hopperfilter.opengui")) {
             return;
         }
         if (!player.isSneaking()) {
             return;
         }
-        if (player.getInventory().getItemInMainHand().getType() != Material.AIR) {
+        if (mainHand.getType() != Material.AIR) {
             return;
         }
 
-        Block block = event.getClickedBlock();
         if (block.getType() != Material.HOPPER) {
             return;
         }
@@ -471,6 +518,12 @@ public final class HopperFilterListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onPlaceHopper(BlockPlaceEvent event) {
         if (event.getBlockPlaced().getType() != Material.HOPPER) {
+            return;
+        }
+
+        // Prevent converter items from being placed as blocks
+        if (HopperConverterItem.isConverter(event.getItemInHand())) {
+            event.setCancelled(true);
             return;
         }
 

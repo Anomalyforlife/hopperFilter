@@ -25,6 +25,10 @@ public final class FilteredHopperItem {
     }
 
     public static ItemStack create(int amount, String name, List<String> lore) {
+        return create(amount, name, lore, 0);
+    }
+
+    public static ItemStack create(int amount, String name, List<String> lore, int customModelData) {
         if (amount <= 0) {
             throw new IllegalArgumentException("amount must be > 0");
         }
@@ -45,6 +49,12 @@ public final class FilteredHopperItem {
                 loreComponents.add(LEGACY.deserialize(line));
             }
             meta.lore(loreComponents);
+        }
+
+        if (customModelData > 0) {
+            var comp = meta.getCustomModelDataComponent();
+            comp.setFloats(java.util.List.of((float) customModelData));
+            meta.setCustomModelDataComponent(comp);
         }
 
         PersistentDataContainer pdc = meta.getPersistentDataContainer();

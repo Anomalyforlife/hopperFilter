@@ -102,5 +102,28 @@ filtered-hopper:
   lore:
     - "§7This hopper can filter items."
 
+  # Custom model data for resource pack texture overrides (0 = disabled).
+  custom-model-data: 0
+
   give-message-sender: "§aGiven {amount}x Filtered Hopper to {player}."
   give-message-receiver: "§aYou received {amount}x Filtered Hopper."
+
+hopper-converter:
+  # Whether the Hopper Converter item feature is enabled.
+  # Only relevant when filtered-hopper.require-special-hopper is true.
+  enabled: true
+
+  # Item material for the converter. Can be any valid Bukkit material name.
+  # The item can never be placed as a block regardless of material.
+  item: HOPPER
+
+  name: "§5Hopper Converter"
+  lore:
+    - "§7Right-click a hopper to convert it"
+    - "§7into a filtered hopper."
+
+  # Custom model data for resource pack texture overrides (0 = disabled).
+  custom-model-data: 0
+
+  give-message-sender: "§aGiven {amount}x Hopper Converter to {player}."
+  give-message-receiver: "§aYou received {amount}x Hopper Converter."

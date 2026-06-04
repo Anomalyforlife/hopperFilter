@@ -6,6 +6,7 @@ import java.util.logging.Logger;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.block.Hopper;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -326,6 +327,37 @@ public final class HopperFilterListener implements Listener {
         }
     }
 
+    /**
+     * Returns true if a filtered hopper directly below sourceHopper has a filter
+     * that matches movingItem and has space to receive it.
+     * Used to give filtered hoppers priority over chain transfers.
+     */
+    private boolean shouldInterceptForFilteredHopper(Hopper sourceHopper, ItemStack movingItem) {
+        if (movingItem == null || movingItem.getType().isAir()) return false;
+
+        Block below = sourceHopper.getBlock().getRelative(BlockFace.DOWN);
+        if (below.getType() != Material.HOPPER) return false;
+
+        if (!(below.getState() instanceof Hopper belowHopper)) return false;
+
+        HopperKey belowKey = HopperKey.fromLocation(belowHopper.getLocation());
+        try {
+            if (!filterService.isFilteredHopper(belowKey)) return false;
+
+            ItemStack[] filter = filterService.getOrLoadView(belowKey);
+            List<CompiledEntry> compiled = compileFilter(filter);
+            if (!isActive(compiled)) return false;
+            if (!allows(compiled, movingItem)) return false;
+
+            ItemStack one = movingItem.clone();
+            one.setAmount(1);
+            return canFit(belowHopper.getInventory(), one);
+        } catch (Exception e) {
+            LOGGER.log(java.util.logging.Level.WARNING, "[HopperFilter] Error in shouldInterceptForFilteredHopper", e);
+            return false;
+        }
+    }
+
     /** Returns how many more items can fit in a specific inventory slot. */
     private static int slotRemainingSpace(Inventory inventory, int slot) {
         ItemStack item = inventory.getItem(slot);
@@ -407,7 +439,20 @@ public final class HopperFilterListener implements Listener {
 
         try {
             HopperKey key = HopperKey.fromLocation(hopperHolder.getLocation());
-            if (!filterService.isFilteredHopper(key)) return;
+            if (!filterService.isFilteredHopper(key)) {
+                // Chain transfer (destination hopper is not filtered).
+                // If a filtered hopper directly below the source wants this item,
+                // cancel the chain transfer so the filtered hopper can pull it first.
+                Inventory source = event.getSource();
+                if (source.getHolder() instanceof Hopper srcHopper) {
+                    HopperKey srcKey = HopperKey.fromLocation(srcHopper.getLocation());
+                    if (!filterService.isFilteredHopper(srcKey)
+                            && shouldInterceptForFilteredHopper(srcHopper, event.getItem())) {
+                        event.setCancelled(true);
+                    }
+                }
+                return;
+            }
 
             Inventory source = event.getSource();
             ItemStack[] filter = filterService.getOrLoadView(key);

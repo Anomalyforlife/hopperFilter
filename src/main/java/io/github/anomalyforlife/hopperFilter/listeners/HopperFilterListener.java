@@ -439,22 +439,22 @@ public final class HopperFilterListener implements Listener {
 
         try {
             HopperKey key = HopperKey.fromLocation(hopperHolder.getLocation());
-            if (!filterService.isFilteredHopper(key)) {
-                // Chain transfer (destination hopper is not filtered).
-                // If a filtered hopper directly below the source wants this item,
-                // cancel the chain transfer so the filtered hopper can pull it first.
-                Inventory source = event.getSource();
-                if (source.getHolder() instanceof Hopper srcHopper) {
-                    HopperKey srcKey = HopperKey.fromLocation(srcHopper.getLocation());
-                    if (!filterService.isFilteredHopper(srcKey)
-                            && shouldInterceptForFilteredHopper(srcHopper, event.getItem())) {
-                        event.setCancelled(true);
-                    }
+
+            // Intercept chain transfers: if a filtered hopper is directly below the source
+            // and wants this item, cancel the push so the filtered hopper can pull instead.
+            // Skip this check when the destination IS the filtered hopper below source —
+            // that means it's already a pull by the filtered hopper, handled by the logic below.
+            Inventory source = event.getSource();
+            if (source.getHolder() instanceof Hopper srcHopper) {
+                Block belowSrc = srcHopper.getBlock().getRelative(BlockFace.DOWN);
+                if (!belowSrc.getLocation().equals(hopperHolder.getLocation())
+                        && shouldInterceptForFilteredHopper(srcHopper, event.getItem())) {
+                    event.setCancelled(true);
+                    return;
                 }
-                return;
             }
 
-            Inventory source = event.getSource();
+            if (!filterService.isFilteredHopper(key)) return;
             ItemStack[] filter = filterService.getOrLoadView(key);
             List<CompiledEntry> compiled = compileFilter(filter);
 

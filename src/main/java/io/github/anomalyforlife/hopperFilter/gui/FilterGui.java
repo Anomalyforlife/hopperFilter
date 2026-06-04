@@ -106,7 +106,7 @@ public final class FilterGui {
         for (int i = 0; i < maxSlots; i++) {
             ItemStack existing = filter[i];
             if (existing != null && !existing.getType().isAir()
-                    && ItemMatch.matches(clicked, existing, FilterMatchOptions.defaults())) {
+                    && ItemMatch.matches(clicked, existing, FilterMatchOptions.from(existing))) {
                 messages.actionBar(player, msgAlready);
                 return;
             }

@@ -53,6 +53,9 @@ public final class HopperFilterListener implements Listener {
     private volatile Plugin plugin;
     private volatile int tntBlockedRadius;
     private volatile boolean converterEnabled;
+    private volatile boolean converterAcceptNameLoreFallback;
+    private volatile String converterName;
+    private volatile java.util.List<String> converterLore;
     private volatile String msgCleared;
     private volatile String msgMustSneakToBreak;
     private volatile String msgMustHaveBreakPerm;
@@ -68,6 +71,9 @@ public final class HopperFilterListener implements Listener {
                                 LanguageManager lang,
                                 int tntBlockedRadius,
                                 boolean converterEnabled,
+                                boolean converterAcceptNameLoreFallback,
+                                String converterName,
+                                java.util.List<String> converterLore,
                                 String msgCleared,
                                 String msgMustSneakToBreak,
                                 String msgMustHaveBreakPerm,
@@ -82,6 +88,9 @@ public final class HopperFilterListener implements Listener {
         this.lang = lang;
         this.tntBlockedRadius = tntBlockedRadius;
         this.converterEnabled = converterEnabled;
+        this.converterAcceptNameLoreFallback = converterAcceptNameLoreFallback;
+        this.converterName = converterName;
+        this.converterLore = converterLore;
         this.msgCleared = msgCleared;
         this.msgMustSneakToBreak = msgMustSneakToBreak;
         this.msgMustHaveBreakPerm = msgMustHaveBreakPerm;
@@ -98,6 +107,9 @@ public final class HopperFilterListener implements Listener {
                                     LanguageManager lang,
                                     int tntBlockedRadius,
                                     boolean converterEnabled,
+                                    boolean converterAcceptNameLoreFallback,
+                                    String converterName,
+                                    java.util.List<String> converterLore,
                                     String msgCleared,
                                     String msgMustSneakToBreak,
                                     String msgMustHaveBreakPerm,
@@ -112,6 +124,9 @@ public final class HopperFilterListener implements Listener {
         this.lang = lang;
         this.tntBlockedRadius = tntBlockedRadius;
         this.converterEnabled = converterEnabled;
+        this.converterAcceptNameLoreFallback = converterAcceptNameLoreFallback;
+        this.converterName = converterName;
+        this.converterLore = converterLore;
         this.msgCleared = msgCleared;
         this.msgMustSneakToBreak = msgMustSneakToBreak;
         this.msgMustHaveBreakPerm = msgMustHaveBreakPerm;
@@ -448,7 +463,7 @@ public final class HopperFilterListener implements Listener {
 
         // Hopper Converter item: right-click on a hopper to convert it
         ItemStack mainHand = player.getInventory().getItemInMainHand();
-        if (converterEnabled && HopperConverterItem.isConverter(mainHand) && block.getType() == Material.HOPPER) {
+        if (converterEnabled && HopperConverterItem.isConverter(mainHand, converterAcceptNameLoreFallback, converterName, converterLore) && block.getType() == Material.HOPPER) {
             event.setCancelled(true);
             if (!player.hasPermission("hopperfilter.admin.convert")) {
                 messages.send(player, "§cYou don't have permission to use this item.");
@@ -522,7 +537,7 @@ public final class HopperFilterListener implements Listener {
         }
 
         // Prevent converter items from being placed as blocks
-        if (HopperConverterItem.isConverter(event.getItemInHand())) {
+        if (HopperConverterItem.isConverter(event.getItemInHand(), converterAcceptNameLoreFallback, converterName, converterLore)) {
             event.setCancelled(true);
             return;
         }

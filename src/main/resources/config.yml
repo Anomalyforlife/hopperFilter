@@ -113,6 +113,11 @@ hopper-converter:
   # Only relevant when filtered-hopper.require-special-hopper is true.
   enabled: true
 
+  # If true, also recognize Hopper Converter items by matching display name + lore,
+  # even if the PDC tag is missing (useful for shop plugins that can't set PDC).
+  # NOTE: Less strict than the PDC marker — enable only if needed.
+  accept-name-lore-fallback: false
+
   # Item material for the converter. Can be any valid Bukkit material name.
   # The item can never be placed as a block regardless of material.
   item: HOPPER

@@ -3,6 +3,9 @@ package io.github.anomalyforlife.hopperFilter;
 import java.util.ArrayList;
 import java.util.List;
 
+import java.util.List;
+import java.util.Objects;
+
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
@@ -57,5 +60,44 @@ public final class HopperConverterItem {
         if (meta == null) return false;
         Byte marker = meta.getPersistentDataContainer().get(KEY, PersistentDataType.BYTE);
         return marker != null && marker == (byte) 1;
+    }
+
+    /**
+     * Like {@link #isConverter(ItemStack)}, but optionally also matches by display name + lore
+     * when the PDC tag is absent (useful for shop plugins that can't set PDC).
+     */
+    public static boolean isConverter(ItemStack stack,
+                                      boolean acceptNameLoreFallback,
+                                      String configuredName,
+                                      List<String> configuredLore) {
+        if (isConverter(stack)) return true;
+        if (!acceptNameLoreFallback || stack == null || stack.getType().isAir()) return false;
+        ItemMeta meta = stack.getItemMeta();
+        if (meta == null) return false;
+
+        if (configuredName != null && !configuredName.isBlank()) {
+            Component displayName = meta.displayName();
+            if (displayName == null) return false;
+            String actual = normalize(LEGACY.serialize(displayName));
+            if (!Objects.equals(normalize(configuredName), actual)) return false;
+        }
+
+        if (configuredLore != null && !configuredLore.isEmpty()) {
+            List<Component> lore = meta.lore();
+            long nonNull = configuredLore.stream().filter(l -> l != null).count();
+            if (lore == null || lore.size() < nonNull) return false;
+            int idx = 0;
+            for (String line : configuredLore) {
+                if (line == null) continue;
+                if (idx >= lore.size()) return false;
+                if (!Objects.equals(normalize(line), normalize(LEGACY.serialize(lore.get(idx))))) return false;
+                idx++;
+            }
+        }
+        return true;
+    }
+
+    private static String normalize(String s) {
+        return s == null ? "" : s.replaceAll("§[0-9a-fk-orA-FK-OR]", "").trim();
     }
 }

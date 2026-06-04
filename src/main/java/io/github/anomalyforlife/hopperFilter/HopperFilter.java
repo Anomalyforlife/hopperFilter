@@ -219,6 +219,7 @@ public final class HopperFilter extends JavaPlugin {
         this.tagSelectGui = new FilterTagSelectGui(filterService, configGui, messages, languageManager);
 
         boolean converterEnabled = specialMode && getConfig().getBoolean("hopper-converter.enabled", true);
+        boolean converterFallback = getConfig().getBoolean("hopper-converter.accept-name-lore-fallback", false);
 
         if (listener == null) {
             listener = new HopperFilterListener(
@@ -232,6 +233,9 @@ public final class HopperFilter extends JavaPlugin {
                     languageManager,
                     getConfig().getInt("tnt.blockedRadius", 5),
                     converterEnabled,
+                    converterFallback,
+                    getConfig().getString("hopper-converter.name", "§5Hopper Converter"),
+                    getConfig().getStringList("hopper-converter.lore"),
                     languageManager.getMsgCleared(),
                     languageManager.getMsgMustSneakToBreak(),
                     languageManager.getMsgMustHaveBreakPerm(),
@@ -249,6 +253,9 @@ public final class HopperFilter extends JavaPlugin {
                     languageManager,
                     getConfig().getInt("tnt.blockedRadius", 5),
                     converterEnabled,
+                    converterFallback,
+                    getConfig().getString("hopper-converter.name", "§5Hopper Converter"),
+                    getConfig().getStringList("hopper-converter.lore"),
                     languageManager.getMsgCleared(),
                     languageManager.getMsgMustSneakToBreak(),
                     languageManager.getMsgMustHaveBreakPerm(),

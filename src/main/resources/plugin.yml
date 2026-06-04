@@ -1,7 +1,7 @@
 name: HopperFilter
 version: '${version}'
 main: io.github.anomalyforlife.hopperFilter.HopperFilter
-api-version: '1.21'
+api-version: '1.21.4'
 load: STARTUP
 authors: [ Anomalyforlife ]
 soft-depend: [ Vault ]

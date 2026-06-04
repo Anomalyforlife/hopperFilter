@@ -13,7 +13,7 @@ version = providers.gradleProperty('pluginVersion').get()
 def mcVersion = providers.gradleProperty('minecraftVersion').get()
 def paperApiRevision = providers.gradleProperty('paperApiRevision').get()
 def paperApiVersion = "${mcVersion}-${paperApiRevision}"
-def runPaperMcVersion = mcVersion.tokenize('.').take(2).join('.')
+def runPaperMcVersion = mcVersion
 
 repositories {
     mavenCentral()

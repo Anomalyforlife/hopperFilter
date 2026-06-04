@@ -41,8 +41,11 @@ permissions:
   hopperfilter.admin.give:
     description: Allows giving special Filtered Hoppers and Hopper Converters via command
     default: op
+  hopperfilter.convert:
+    description: Allows using the Hopper Converter item to convert hoppers
+    default: op
   hopperfilter.admin.convert:
-    description: Allows converting hoppers to filtered hoppers via command or converter item
+    description: Allows converting hoppers to filtered hoppers via /hf converthopper and /hf convertradius
     default: op
   hopperfilter.upgrade:
     description: Allows upgrading filtered hoppers via the GUI

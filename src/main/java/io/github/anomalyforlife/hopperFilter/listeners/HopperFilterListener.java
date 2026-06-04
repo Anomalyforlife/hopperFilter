@@ -465,7 +465,7 @@ public final class HopperFilterListener implements Listener {
         ItemStack mainHand = player.getInventory().getItemInMainHand();
         if (converterEnabled && HopperConverterItem.isConverter(mainHand, converterAcceptNameLoreFallback, converterName, converterLore) && block.getType() == Material.HOPPER) {
             event.setCancelled(true);
-            if (!player.hasPermission("hopperfilter.admin.convert")) {
+            if (!player.hasPermission("hopperfilter.convert")) {
                 messages.send(player, "§cYou don't have permission to use this item.");
                 return;
             }
